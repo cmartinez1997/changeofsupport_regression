@@ -1,7 +1,6 @@
 ##Making functions for climate data wrangling and climate normals
 
 
-
 # load packages -----------------------------------------------------------
 
 library(tidyverse)
@@ -35,11 +34,15 @@ climate_normals <- function(climate_data, start, end) {
     group_by(PLT_CN, year) %>% 
     summarize(mean_ppt = mean(ppt), mean_tmin = mean(tmin), mean_tmax = mean(tmax))
   
-  site_normals <- normals %>% group_by(PLT_CN) %>% summarize(MAT = mean(mean(mean_tmin + mean_tmax)/2), MAP = mean(mean_ppt))
+  site_normals <- normals %>% group_by(PLT_CN) %>% summarize(meantemp = mean(mean(mean_tmin + mean_tmax)/2), precip = mean(mean_ppt))
   
   return(site_normals)
 
 }
 
 #climate normals for 1900-2010 for each site
-norms <- climate_normals(climate_dat, 1900, 2010)
+norms <- climate_normals(climate_dat, 1900, 2000)
+as.data.frame(norms)
+#export climate normals as csv
+
+write_csv(norms, "tree-H/data/climate_norms.csv")
