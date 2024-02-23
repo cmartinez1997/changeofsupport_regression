@@ -45,4 +45,10 @@ norms <- climate_normals(climate_dat, 1900, 2000)
 as.data.frame(norms)
 #export climate normals as csv
 
+ggplot(norms, aes(x = precip, y = meantemp)) +
+  geom_point() +
+  labs(x = "Mean Annual Precipitation", y = "Mean Annual Temperature") +
+  ggtitle("Climate Normals: Mean Annual Temperature vs. Mean Annual Precipitation") + 
+  theme_bw()
+
 write_csv(norms, "tree-H/data/climate_norms.csv")
