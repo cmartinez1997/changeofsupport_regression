@@ -9,46 +9,51 @@ make_X <- function(dat_climate, formula = NULL, functional_form = "linear", verb
     # row 1: year 1, site 1
     # row 2: year 1, site 2
     # etc
-    years <- sort(unique(dat_climate$year))
+    growthyears <- sort(unique(dat_climate$growthyear))
+    # NOTE: Ceci will delete first growth year (1895)
+    # TO MAKE WORK UNTIL THEN, DELETE 1895 BY HAND AND DELETE THIS CODE LATER
+    growthyears <- growthyears[!(growthyears == 1895)]
+    # DELETE THE ABOVE ONCE making_climate_functions is updated
     sites <- unique(dat_climate$PLT_CN)
     
     n_vars <- dat_climate |> 
-        filter(year == years[1], PLT_CN == sites[1]) |> 
+        filter(growthyear == growthyears[1], PLT_CN == sites[1]) |> 
         pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt")) |>
-        select(-c("PLT_CN", "year")) |>
+        select(-c("PLT_CN", "year", "growthyear")) |>
         # formula/functonal form here
         #
         ncol()
     
     var_names <- dat_climate |> 
-        filter(year == years[1], PLT_CN == sites[1]) |> 
+        filter(growthyear == growthyears[1], PLT_CN == sites[1]) |> 
         pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt")) |>
-        select(-c("PLT_CN", "year")) |>
+        select(-c("PLT_CN", "year", "growthyear")) |>
         names()
     
-    X           <- matrix(0, length(years) * length(sites), n_vars)
-    colnames(X) <- var_names
-    row_names   <- rep(0, length(years) * length(sites))
-    year_id     <- rep(0, length(years) * length(sites))
-    site_id     <- rep(0, length(years) * length(sites))
+    X             <- matrix(0, length(growthyears) * length(sites), n_vars)
+    colnames(X)   <- var_names
+    row_names     <- rep(0, length(growthyears) * length(sites))
+    growthyear_id <- rep(0, length(growthyears) * length(sites))
+    site_id       <- rep(0, length(growthyears) * length(sites))
     
     # This is slow but we can see about making it faster in the future
     idx <- 1
-    for (i in 1:length(years)) {
-        if (verbose) message("On year ", i, " out of ", length(years))
+    for (i in 1:length(growthyears)) {
+        if (verbose) message("On year ", i, " out of ", length(growthyears))
         for (j in 1:length(sites)) {
             X[idx, ] <- dat_climate |>
-                filter(year == years[i], PLT_CN == sites[j]) |> 
+                filter(growthyear == growthyears[i], PLT_CN == sites[j]) |> 
+                select(-"year") |>
                 pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt")) |>
-                select(-c("PLT_CN", "year")) |>
+                select(-c("PLT_CN", "growthyear")) |>
                 unlist()
             
-            row_names[idx] <- paste(years[i], sites[j])
-            year_id[idx]   <- years[i]
-            site_id[idx]   <- sites[j]
-            idx            <- idx + 1  
+            row_names[idx]     <- paste(growthyears[i], sites[j])
+            growthyear_id[idx] <- growthyears[i]
+            site_id[idx]       <- sites[j]
+            idx                <- idx + 1  
         }
     }
     rownames(X) <- row_names
-    return(list(X = X, year_id = year_id, site_id = site_id))
+    return(list(X = X, year_id = growthyear_id, site_id = site_id))
 }
