@@ -6,13 +6,16 @@ library(here)
 library(Matrix)
 
 # Load the data
-dat <- read_csv(here::here("data", "climate_growth_rw.csv"))
-dat_climate <- read_csv(here::here("data", "climate_data_all.csv"))
+dat <- read_csv(here::here("tree-H", "data", "climate_growth_rw.csv"))
 
+source(here::here("tree-H", "R", "making_climate_functions.R"))
+# dat_climate <- read_csv(here::here("data", "climate_data_all.csv"))
+dat_climate <- new_climate
+  
 # Load the functions
-source(here::here("R", "check_overlap.R")) 
-source(here::here("R", "make_X.R")) 
-source(here::here("R", "make_H.R")) 
+source(here::here("tree-H", "R", "check_overlap.R")) 
+source(here::here("tree-H", "R", "make_X.R")) 
+source(here::here("tree-H", "R", "make_H.R")) 
 
 # Check the data sources for overlap and lack of overlap
 missing_overlap <- check_overlap(dat, dat_climate)
@@ -23,11 +26,11 @@ unique(dat$PLT_CN[missing_overlap$tree_CN_missing])
 
 # What data in the climate are not in the tree ring data?
 dat[missing_overlap$tree_year_missing, ]
-unique(dat$Year[missing_overlap$tree_year_missing])
+sort(unique(dat$Year[missing_overlap$tree_year_missing]))
 
 # Drop the missing data
 message("About ", round(mean((missing_overlap$tree_CN_missing) | (missing_overlap$tree_year_missing)) * 100, digits = 0), "% of tree ring data will be dropped")
-message("About ", round(mean((missing_overlap$climate_CN_missing) | (missing_overlap$climate_year_missing)) * 100, digits = 0), "% of tree ring data will be dropped")
+message("About ", round(mean((missing_overlap$climate_CN_missing) | (missing_overlap$climate_year_missing)) * 100, digits = 0), "% of climate ring data will be dropped")
 
 dat         <- dat[!missing_overlap$tree_CN_missing & !missing_overlap$tree_year_missing, ]
 dat_climate <- dat_climate[!missing_overlap$climate_CN_missing & !missing_overlap$climate_year_missing, ]
@@ -42,6 +45,14 @@ year_id  <- fit_list$year_id
 site_id  <- fit_list$site_id
 
 
+source(here::here("tree-H", "R", "make_bspline.R"))
+# Note: THIS IS TOO LARGE TO FIT AS CURRENTLY IMPLEMENTED
+# X_splines <- make_bspline(X, interaction = TRUE)
+
+source(here::here("tree-H", "R", "make_bspline.R"))
+X_poly <- make_polynomials(X, interaction = TRUE)
+
+
 # Create the H matrix for change of support/alignment
 H <- make_H(dat, fit_list)
 # Convert H to a sparse matrix
@@ -54,6 +65,23 @@ HX <- as.matrix(H %*% X)
 mod <- lm(log(dat$RW + 0.01) ~ HX + 0)
 summary(mod)
 
+
+# Generate the "design" matrix for a splines regression
+HX_splines <- as.matrix(H %*% matrix(X_splines, dim(X_splines)))
+
+# Linear model of rw growth as a function of monthly climate
+
+mod <- lm(log(dat$RW + 0.01) ~ HX_splines + 0)
+summary(mod)
+
+
+# Generate the "design" matrix for a polynomial regression
+HX_poly <- as.matrix(H %*% matrix(X_poly, dim(X_poly)))
+
+# Linear model of rw growth as a function of monthly climate
+
+mod <- lm(log(dat$RW + 0.01) ~ HX_poly + 0)
+summary(mod)
 # Older code and sketching the ideas for future development.
 
 
