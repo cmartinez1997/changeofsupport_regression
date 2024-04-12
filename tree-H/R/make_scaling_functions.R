@@ -30,9 +30,9 @@ local_scale <- function(data, clim_norms, clim_locals) {
     group_by(PLT_CN) %>% 
     mutate_at(vars(all_of(clim_locals)), scale) %>% 
     ungroup()
+  data <- as.data.frame(data)
   return(data)
 }
 
 local_scale_clim <- local_scale(climate_dat, clim_norms = c("meantemp", "precip"), clim_locals = c("tmin", "tmax", "ppt"))
-
 
