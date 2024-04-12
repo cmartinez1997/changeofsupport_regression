@@ -53,7 +53,9 @@ ggplot(norms, aes(x = precip, y = meantemp)) +
 
 write_csv(norms, "tree-H/data/climate_norms.csv")
 
-
 # Join climate normals to new_climate
 new_climate <- new_climate |> 
   left_join(norms, by = "PLT_CN")
+
+write_csv(new_climate, "tree-H/data/all_clim_norms.csv")
+
