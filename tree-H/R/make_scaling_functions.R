@@ -20,8 +20,7 @@ global_scale <- function(data, climate_vars) {
   return(scaled_data)
 }
 
-global_scale(climate_dat, c("tmin", "tmax", "ppt", "meantemp", "precip"))
-
+global_scale_clim <- global_scale(climate_dat, c("tmin", "tmax", "ppt", "meantemp", "precip"))
 
 # local scale function ----------------------------------------------------
 # this globally scales the normals, but locally scales the time-varying climate variables
@@ -34,6 +33,6 @@ local_scale <- function(data, clim_norms, clim_locals) {
   return(data)
 }
 
-local_scale(climate_dat, clim_norms = c("meantemp", "precip"), clim_locals = c("tmin", "tmax", "ppt"))
+local_scale_clim <- local_scale(climate_dat, clim_norms = c("meantemp", "precip"), clim_locals = c("tmin", "tmax", "ppt"))
 
 
