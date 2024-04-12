@@ -21,6 +21,14 @@ wbp_rw <- wbp_rw %>% filter(!is.na(TRE_CN) & !is.na(PLT_CN))
 wbp_rw <- wbp_rw %>% select(-CN)
 
 length(unique(wbp_rw$TRE_CN)) #219 unique trees
+ 
+# truncate the years so that they only span the years of climate data that we have, so 1896 onwards
+wbp_rw <- wbp_rw %>%
+  filter(Year >= 1896)
+
+wbp_rw$TRE_CN <- as.character(wbp_rw$TRE_CN)
+wbp_rw$PLT_CN <- as.character(wbp_rw$PLT_CN)
+
 
 # load in climate data ----------------------------------------------------
 
@@ -60,10 +68,12 @@ climate_all <- left_join(tmin_long, tmax_long, by = c("PLT_CN", "year", "month")
 ## get help on this 
 
 
-#reorder columns
+#reorder columns and get rid of 1895 growth year
 climate_all <- climate_all %>%
-  select(PLT_CN, year, month, tmin, tmax, ppt)
+  select(PLT_CN, year, month, tmin, tmax, ppt) %>% 
+  filter(!(year == 1895 & month >= 1 & month <= 8))
 
+climate_all$PLT_CN <- as.character(climate_all$PLT_CN)
 ## making seasonal climate variables, refer to climate-growth analyses
 
 
