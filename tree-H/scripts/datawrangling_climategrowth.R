@@ -75,6 +75,17 @@ climate_all$PLT_CN <- as.character(climate_all$PLT_CN)
 ## making seasonal climate variables, refer to climate-growth analyses
 
 
+## check to make sure that the PLT_CN matches in both dfs and filter out the rows for which there isn't a match
+
+unique_climate <- unique(climate_all$PLT_CN)
+unique_wbp <- unique(wbp_rw$PLT_CN)
+
+plots_match <- unique(climate_all$PLT_CN) %>% 
+  intersect(unique(wbp_rw$PLT_CN))
+
+wbp_rw <- wbp_rw %>% 
+  filter(PLT_CN %in% plots_match)
+
 # write and export as csvs --------------------------------------------------------------
 
 write_csv(wbp_rw, "tree-H/data/climate_growth_rw.csv")
