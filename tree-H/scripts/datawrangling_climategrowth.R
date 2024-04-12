@@ -8,7 +8,7 @@
 
 library(tidyverse) # for data wrangling
 
-# read in tree ring data and associated metadata from Justin DeRose --------
+# read in wbp tree ring data and associated metadata ----------------------
 
 wbp_rw <- read_csv("tree-H/data/T_iwfia_whitebark_rw.txt")
 wbp_meta <- read_csv("tree-H/data/T_iwfia_whitebark.txt")
@@ -56,8 +56,6 @@ ppt_long <- ppt %>%
          month = as.integer(substr(variable, 9, 10))) %>%
   select(-variable, -CORE_CN, -TRE_CN)
 
-
-
 # Combine the data frames into one climate dataframe
 tmin_long <- distinct(tmin_long, PLT_CN, year, month, .keep_all = TRUE)
 tmax_long <- distinct(tmax_long, PLT_CN, year, month, .keep_all = TRUE)
@@ -77,9 +75,7 @@ climate_all$PLT_CN <- as.character(climate_all$PLT_CN)
 ## making seasonal climate variables, refer to climate-growth analyses
 
 
-
-
-# write csvs --------------------------------------------------------------
+# write and export as csvs --------------------------------------------------------------
 
 write_csv(wbp_rw, "tree-H/data/climate_growth_rw.csv")
 write_csv(climate_all, "tree-H/data/climate_data_all.csv")
