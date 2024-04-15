@@ -8,9 +8,8 @@ library(Matrix)
 # Load the data
 dat <- read_csv(here::here("tree-H", "data", "climate_growth_rw.csv"))
 
-source(here::here("tree-H", "R", "making_climate_functions.R"))
 # dat_climate <- read_csv(here::here("data", "climate_data_all.csv"))
-dat_climate <- new_climate
+dat_climate <- read_csv(here::here("tree-H", "data", "climate_data_all.csv"))
   
 # Load the functions
 source(here::here("tree-H", "R", "check_overlap.R")) 
