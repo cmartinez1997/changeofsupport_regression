@@ -1,15 +1,5 @@
 ##Making functions for climate data wrangling and climate normals
 
-
-# load packages -----------------------------------------------------------
-
-library(tidyverse)
-
-
-# read in data ------------------------------------------------------------
-
-climate_dat <- read_csv("tree-H/data/climate_data_all.csv")
-
 # make climate predictors meaningful by incorporating previous year ppt, tmin, tmax--------
 # NOTE: data needs to be formatted appropriately, see datawrangling_climategrowth script to do this
 
@@ -23,7 +13,6 @@ climate_growthyear <- function(climate_data) {
 #    mutate(growthyear = if_else(month %in% c(start_dormant:12), year + 1, year))
 #}
 
-new_climate <- climate_growthyear(climate_dat)
 # View(new_climate)
 
 # make climate normals function from prism data for each site
@@ -40,22 +29,4 @@ climate_normals <- function(climate_data, start, end) {
 
 }
 
-#climate normals for 1900-2010 for each site
-norms <- climate_normals(climate_dat, 1900, 2000)
-as.data.frame(norms)
-#export climate normals as csv
-
-ggplot(norms, aes(x = precip, y = meantemp)) +
-  geom_point() +
-  labs(x = "Mean Annual Precipitation", y = "Mean Annual Temperature") +
-  ggtitle("Climate Normals: Mean Annual Temperature vs. Mean Annual Precipitation") + 
-  theme_bw()
-
-write_csv(norms, "tree-H/data/climate_norms.csv")
-
-# Join climate normals to new_climate
-new_climate <- new_climate |> 
-  left_join(norms, by = "PLT_CN")
-
-write_csv(new_climate, "tree-H/data/all_clim_norms.csv")
 
