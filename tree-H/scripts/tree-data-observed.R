@@ -6,10 +6,8 @@ library(here)
 library(Matrix)
 
 # Load the data
-dat <- read_csv(here::here("tree-H", "data", "climate_growth_rw.csv"))
-
-# dat_climate <- read_csv(here::here("data", "climate_data_all.csv"))
-dat_climate <- read_csv(here::here("tree-H", "data", "climate_data_all.csv"))
+dat <- read_csv(here::here("tree-H", "data", "processed", "climate_growth_rw.csv"))
+dat_climate <- read_csv(here::here("tree-H", "data", "processed", "climate_data_all.csv"))
   
 # Load the functions
 source(here::here("tree-H", "R", "check_overlap.R")) 
@@ -37,7 +35,7 @@ dat_climate <- dat_climate[!missing_overlap$climate_CN_missing & !missing_overla
 
 # Create the design matrix (NOTE: all RW increments are linear combinations of current year climate variables)
 # NOTE: This is currently slow but could be made faster
-# NOTE: It might make sense to center and scale these here, not currently implemented
+# NOTE: It might make sense to center and scale these here, not currently implemented 
 fit_list <- make_X(dat_climate)
 X        <- fit_list$X
 year_id  <- fit_list$year_id
