@@ -30,7 +30,10 @@ annualizedDBH <- wbp_size_dat %>%
   arrange(TRE_CN,Year) %>% 
     mutate(DIA_bc = backcalculate_DBH(TRE_CN = TRE_CN, MEASYEAR = MEASYEAR, Year = Year, RW = RW, DIA_t = DIA_t))
 
+#did DIA_bc = DIA_t when last RW year was 1 year less than MEASYEAR
+check_data <- annualizedDBH[which(annualizedDBH$Year + 1 == annualizedDBH$MEASYEAR),]
 
+# write to csv ------------------------------------------------------------
 
-
+write_csv(annualizedDBH, "tree-H/data/processed/imputed_DIA.csv")
 
