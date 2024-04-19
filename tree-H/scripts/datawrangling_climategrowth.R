@@ -29,8 +29,8 @@ wbp_rw <- wbp_rw %>% select(-CN)
 length(unique(wbp_rw$TRE_CN)) #219 unique trees
  
 # truncate the years so that they only span the years of climate data that we have, so 1896 onwards
-wbp_rw <- wbp_rw %>%
-  filter(Year >= 1896)
+#wbp_rw <- wbp_rw %>%
+#  filter(Year >= 1896)
 
 wbp_rw$TRE_CN <- as.character(wbp_rw$TRE_CN)
 wbp_rw$PLT_CN <- as.character(wbp_rw$PLT_CN)

@@ -47,7 +47,7 @@ source(here::here("tree-H", "R", "make_bspline.R"))
 # X_splines <- make_bspline(X, interaction = TRUE)
 
 source(here::here("tree-H", "R", "make_bspline.R"))
-X_poly <- make_polynomials(X, interaction = TRUE)
+X_poly <- make_polynomials(X)
 
 
 # Create the H matrix for change of support/alignment
