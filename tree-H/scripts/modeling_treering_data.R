@@ -102,7 +102,7 @@ fit_models <- function(dat, dat_climate, model_types = c("linear"), scaling = c(
         dat_climate_scaled <- dat_climate
       }
       
-      # fit the model using the scaled dataset
+      # fit the the model
       if (model_type == "linear") {
         formula <- formula(log(RW + 0.01) ~ HX + 0)
       } else if (model_type == "quadratic") {
@@ -115,18 +115,12 @@ fit_models <- function(dat, dat_climate, model_types = c("linear"), scaling = c(
       
       model_fit <- lm(formula, data = dat)
       aic_score <- AIC(model_fit)
-      
-      # Store AIC scores
       model_results[[paste(model_type, scale_type, sep = "_")]] <- aic_score
-     
     }
   }
-  
   aic_df <- data.frame(
     AIC = unlist(model_results)
-  
   )
-  
   aic_table <- aic_df %>%
     kableExtra::kable(escape = FALSE) %>%
     kable_styling(full_width = FALSE)
