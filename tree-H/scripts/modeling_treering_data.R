@@ -5,6 +5,7 @@ library(tidyverse)
 library(here)
 library(Matrix)
 library(kableExtra)
+library(easystats)
 
 # Load tstats# Load the data
 dat <- read_csv(here::here("tree-H", "data", "processed", "climate_growth_rw.csv"))
@@ -67,7 +68,7 @@ summary(mod)
 # include quadratic effects rw as function of monthly climate with quadratic effects
 
 mod_quad <- lm(log(dat$RW + 0.01) ~ HX + I(HX^2) + 0)
-summary(mode_quad)
+summary(mod_quad)
 
 
 # function to fit regression models, just trying out ----------------------
@@ -128,5 +129,84 @@ fit_models <- function(dat, dat_climate, model_types = c("linear"), scaling = c(
   return(aic_table)
 }
 
-fit_models(dat, dat_climate, model_types = c("linear", "quadratic"), scaling = c("local"))
+fit_models(dat, dat_climate, model_types = c("linear", "quadratic"), scaling = c("local", "global"))
+
+
+
+
+
+## explore doing this in separate steps
+
+fit_models_1 <- function(dat, dat_climate, model_types = c("linear"), scaling = c("none"), random_effects = FALSE) {
+  
+  climate_vars <- NULL
+  clim_norms <- NULL
+  clim_locals <- NULL
+  
+  # figure out which arguments in scaling to populate
+  if ("global" %in% scaling) {
+    climate_vars <- c("tmin", "tmax", "ppt", "meantemp", "precip")  
+  } 
+  if ("local" %in% scaling) {
+    clim_norms <- c("meantemp", "precip")  
+    clim_locals <- c("tmin", "tmax", "ppt")  
+  }
+  
+  model_results <- list()
+  
+  # loop through different models
+  for (model_type in model_types) {
+    # loop through scaling types
+    for (scale_type in scaling) {
+      # apply scaling to the dataset
+      if (scale_type == "global") {
+        dat_climate_scaled <- global_scale(dat_climate, climate_vars)
+      } else if (scale_type == "local") {
+        dat_climate_scaled <- local_scale(dat_climate, clim_norms, clim_locals)
+      } else {
+        dat_climate_scaled <- dat_climate
+      }
+      
+      # fit the models
+      if (model_type == "linear") {
+        formula <- formula(log(RW + 0.01) ~ HX + 0)
+      } else if (model_type == "quadratic") {
+        formula <- formula((log(dat$RW + 0.01) ~ HX + I(HX^2) + 0))
+      } else if (model_type == "splines") {
+        formula <- formula(log(RW + 0.01) ~ HX_splines + 0)
+      } else {
+        stop("Invalid model type specified.")
+      }
+      
+      model_fit <- lm(formula, data = dat)
+      model_results[[paste(model_type, scale_type, sep = "_")]] <- model_fit
+    }
+  }
+  
+  return(model_results)
+}
+
+
+# evalukate models
+evaluate_models <- function(model_results) {
+  aic_results <- sapply(model_results, function(model) AIC(model))
+  aic_df <- data.frame(AIC = aic_results)
+  aic_table <- aic_df %>%
+    kableExtra::kable(escape = FALSE) %>%
+    kable_styling(full_width = FALSE)
+  
+  return(aic_table)
+}
+
+
+#testing the models
+
+fit_models_1(dat, dat_climate, model_types = c("linear", "quadratic"), scaling = c("global", "local"))
+
+model_results <- fit_models_1(dat, dat_climate, model_types = c("linear", "quadratic"), scaling = c("global"))
+print(evaluate_models(model_results))
+
+
+
+
 
