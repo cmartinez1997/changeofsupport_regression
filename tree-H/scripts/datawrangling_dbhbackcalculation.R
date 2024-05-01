@@ -18,17 +18,15 @@ wbp_meta <- read_csv(here::here("tree-H", "data", "raw", "T_iwfia_whitebark.txt"
 # need to add tre and plot CN (unique tree and plot level identifiers) to the rw dataframe
 
 wbp_rw_bc <- left_join(wbp_rw, wbp_meta)
-wbp_rw_bc <- wbp_rw_bc %>% select(CN, TRE_CN, Year, RW, MEASYEAR)
+wbp_rw_bc <- wbp_rw_bc %>% select(CN, TRE_CN, Year, RW, MEASYEAR, DIA)
 wbp_rw_bc <- wbp_rw_bc %>% filter(!is.na(TRE_CN))
-wbp_rw_bc <- wbp_rw_bc %>% select(-CN)
+wbp_rw_bc <- wbp_rw_bc %>% select(-CN) 
 
 length(unique(wbp_rw_bc$TRE_CN)) #219 unique trees
 
 # make identifiers characters
 
 wbp_rw_bc$TRE_CN <- as.character(wbp_rw_bc$TRE_CN)
-wbp_rw_bc$PLT_CN <- as.character(wbp_rw_bc$PLT_CN)
-
 
 # make dbh dataframe
 wbp_dbh_bc <- wbp_meta %>% select(TRE_CN, MEASYEAR, DIA)
@@ -42,7 +40,7 @@ write_csv(wbp_dbh_bc, "tree-H/data/processed/wbp_dbh_bc.csv")
 
 # load in function to do backcauclation ----------------------------------------------------
 
-source(here::here("tree-H", "R", "make_Z.R")) 
+source(here::here("tree-H", "R", "make_annualizeDBH.R")) 
 
 
 # run function -----------------------------------------------------------
