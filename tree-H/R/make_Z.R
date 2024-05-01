@@ -1,24 +1,26 @@
 
 
+
+
 backcalculate_DBH <- function(dat_rw, dat_dbh){
   #so ideally we will have a data file with ring widths and a data file with diameters 
   #TRE_CN,DIA_t,MEASYEAR,Year,RW - need these columns in dataframes  these data frames will be created in the scripts
   #create data frame with empty column for annualized dbh
-  #tree_df <- data.frame(TRE_CN,DIA_t,MEASYEAR,Year,RW,DIA_bc = NA)
   #N is the row where measure year and ring width year are the same
-  # we also need to make sure that it is coming from the same tree
+  #we also need to make sure that it is coming from the same tree
+  # come back to problem where there might be multiple cores from one tree
   
-  dia_bc <- rep(0, nrow(dat_rw)) # creating an empty vector with backcalculated diameter, but also multiple cores with one tree 
+  dia_bc <- rep(0, nrow(dat_rw)) # creating an empty vector with backcalculated diameter
   
   for (i in 1:nrow(dat_rw)) {
     tree_id <- dat_rw$TRE_CN
   } 
   
-  dbh_rows <- which(dat_dbh$TRE_CN == tree_id) # this returns index of values that satisfy the fiven condition
+  dbh_rows <- which(dat_dbh$TRE_CN == tree_id) 
   
   N <- which(dat_rw$Year[i] == dat_dbh$MEASYEAR[dbh_rows]) #the year where ring width matches mesaurement year in dbh data and uears + 1
   if(length(N) == 0){
-    N <- which(dat_rw$Year[i] + 1 == dat_dbh$MEASYEAR[dbh_rows]) # if no match is found, try matchin giwth the next year in rind width data with first measruement year in dbh data
+    N <- which(dat_rw$Year[i] + 1 == dat_dbh$MEASYEAR[dbh_rows]) # if no match is found, try matching with the next year in rind width data with first measruement year in dbh data
   }
   
   if(length(N) > 0){ # if the length >0 then set the current row to be one less than N
