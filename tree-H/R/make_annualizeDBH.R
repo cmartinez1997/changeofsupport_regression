@@ -12,11 +12,9 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
     dplyr::arrange(TRE_CN, desc(Year)) |>
     dplyr::group_by(TRE_CN) |>
     dplyr::mutate(cum_dia_change = cumsum(dplyr::lag(RW_in, default = 0))) |> 
-    dplyr::ungroup() %>%       # dig into this lag function, verify that it produces the correct order of cum_dia_change
     dplyr::mutate(total_rw_change = 2 * cum_dia_change) |> #look into dplyr time series tools 
     dplyr::mutate(dia_est = DIA - total_rw_change) # this deals with only one DBH/DRC measurement at time of coring, think about more than one DBH meas
   
-
   years <- sort(unique(dat$Year))
   trees <- unique(dat$TRE_CN)
   
@@ -52,7 +50,6 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
         select(-c("TRE_CN", "MEASYEAR", "DIA", "TRE_CN", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
         unlist() 
     
-    
       if (length(temp) > 0 ) { 
         Z[idx, ] <- temp
         row_names[idx]     <- paste(years[i], trees[j])
@@ -70,7 +67,7 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
   year_id <- year_id[1:(idx-1)]
   tree_id <- tree_id[1:(idx-1)]
   
-  
+
   # rownames(X) <- row_names
   return(list(Z = Z, year_id = year_id, tree_id = tree_id))
 }

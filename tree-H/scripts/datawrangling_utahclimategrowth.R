@@ -54,9 +54,6 @@ ut_rw_ES <- ut_rw %>%
   select("TRE_CN", "PLT_CN", "Year", "RW")
 
 
-
-
-
 length(unique(ut_rw_ES$TRE_CN)) #52 unique trees
 
 UT_tree <- read_csv("tree-H/data/raw/UT_TREE.csv")

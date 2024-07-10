@@ -64,6 +64,7 @@ es_rw_bc <- es_rw_bc %>% select(-CN)
 length(unique(es_meta$TRE_CN)) #52 unique trees for utah
 length(unique(es_meta$PLT_CN)) #46 unique plots
 
+
 # make identifiers characters
 
 es_rw_bc$TRE_CN <- as.character(es_rw_bc$TRE_CN)
@@ -78,7 +79,6 @@ source(here::here("tree-H", "R", "make_annualizeDBH.R"))
 
 # run function -----------------------------------------------------------
 backcalculate_DBH(es_rw_bc)
-
 
 
 dat_bc <- dat_bc |>
