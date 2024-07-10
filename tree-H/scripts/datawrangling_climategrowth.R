@@ -85,10 +85,10 @@ unique_climate <- unique(climate_dat$PLT_CN)
 unique_wbp <- unique(wbp_rw$PLT_CN)
 
 plots_match <- unique(climate_dat$PLT_CN) %>% 
-  intersect(unique(wbp_rw$PLT_CN)).  #161 plots match
+  intersect(unique(wbp_rw$PLT_CN))  #161 plots match
 
 wbp_rw <- wbp_rw %>% 
-  filter(PLT_CN %in% plots_match)
+  filter(PLT_CN %in% plots_match) # this makes sure that the plt_cn match for the climate and the ring width data frame 
 
 # add climate norms and growth year (biologically significant years) to df -------------------------------------------------
 
@@ -107,4 +107,7 @@ climate_all <- climate_all %>%
 
 write_csv(wbp_rw, "tree-H/data/processed/climate_growth_rw.csv")
 write_csv(climate_all, "tree-H/data/processed/climate_data_all.csv")
+
+
+
 

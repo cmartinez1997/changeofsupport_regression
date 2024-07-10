@@ -2,37 +2,127 @@
 ## Cecilia Martinez 
 ## April 15 2024
 ## cecimartinez333@gmail.com
+## backcalculate tree diameter measurements using FIA DBH and ringwidth data
 
-## initial code from Courntey Giebink github repo: 
-## modeified by Ceci Martinez
-## backcalculate DBH usng ringwidth data
+backcalculate_DBH <- function(dat_bc, verbose = TRUE){
+  # this only handles one core per tree
+  # TO DO: throw warning if more than one core per tree - add this
+  dat <- dat_bc |>
+    mutate(RW_in = RW * 0.0393701) |> 
+    dplyr::arrange(TRE_CN, desc(Year)) |>
+    dplyr::group_by(TRE_CN) |>
+    dplyr::mutate(cum_dia_change = cumsum(dplyr::lag(RW_in, default = 0))) |> 
+    dplyr::ungroup() %>%       # dig into this lag function, verify that it produces the correct order of cum_dia_change
+    dplyr::mutate(total_rw_change = 2 * cum_dia_change) |> #look into dplyr time series tools 
+    dplyr::mutate(dia_est = DIA - total_rw_change) # this deals with only one DBH/DRC measurement at time of coring, think about more than one DBH meas
+  
 
-backcalculate_DBH <- function(dat_rw, dat_dbh){
-  #TRE_CN,DIA_t,MEASYEAR,Year,RW - need these columns in dataframes 
-  #create data frame with empty column for annualized dbh
-  #tree_df <- data.frame(TRE_CN,DIA_t,MEASYEAR,Year,RW,DIA_bc = NA)
-  #N is the row where measure year and ring width year are the same
-  N <- nrow(dat_rw)
-  dia_bc <- rep(0, N)
+  years <- sort(unique(dat$Year))
+  trees <- unique(dat$TRE_CN)
+  
+  # n_vars <- dat |> 
+  #   filter(Year == years[1], TRE_CN == trees[1]) |> 
+  #   select(-c( "MEASYEAR", "DIA", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
+  #   # formula/functonal form here
+  #   #
+  #   ncol()
+  # 
+  # 
+  # var_names <- dat |> 
+  #   filter(Year == years[1], TRE_CN == trees[1]) |> 
+  #   select(-c( "MEASYEAR", "DIA", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
+  #   
+  
+  Z             <- matrix(0, length(years) * length(trees), 1)
+  colnames(Z)   <- "dbh_bc"
+  row_names     <- rep(0, length(years) * length(trees))
+  year_id       <- rep(0, length(years) * length(trees))
+  tree_id       <- rep(0, length(years) * length(trees))
   
   
-  N <- which(dat_rw$Year == dat_dbh$MEASYEAR[1]) #next step is to allow N to be ring width year -1
-  if(length(N) == 0){
-    N <- which(dat_rw$Year + 1 == dat_dbh$MEASYEAR[1])
-  }
-  if(length(N) > 0){
-    Curr_row <- N-1 #each time through subtract 1 and move down one row (or back one year)
-    dia_bc[N] <- dat_dbh$DIA_t[N] #dbh when year of ring width and measure year are equal
-    while (Curr_row > 0 & !is.na(dia_bc[Curr_row + 1])) { #loop will stop when it gets to the end of data for that tree
-      DIA_1 <- dia_bc[Curr_row+1] #or DIA_t[N] for the first round
-      RW1 <- dat_rw$RW[Curr_row+1] 
-      #convert ring width from mm to inches
-      RW1 = RW1 * 0.0393701
-      dia_bc[Curr_row] <- DIA_1 - (2*RW1) ## okay this is just the absolute ring width way right now
-      #continue loop for next row until curr_row>0
-      Curr_row = Curr_row - 1 
+  idx <- 1
+  for (i in 1:length(years)) {
+    if (verbose) message("On year ", i, " out of ", length(years))
+    for (j in 1:length(trees)) {
+      
+      
+      temp <-   dat |>
+        filter(Year == years[i], TRE_CN == trees[j]) |>  #assumes every year has a ring width measurement
+        select(-"Year") |>
+        select(-c("TRE_CN", "MEASYEAR", "DIA", "TRE_CN", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
+        unlist() 
+    
+    
+      if (length(temp) > 0 ) { 
+        Z[idx, ] <- temp
+        row_names[idx]     <- paste(years[i], trees[j])
+        year_id[idx]       <- years[i]
+        tree_id[idx]       <- trees[j]
+        idx                <- idx + 1  
+        
+      }
+      
+      
+      
     }
   }
-  return(tree_df$DIA_bc)
+  Z <- Z[1:(idx-1), ]
+  year_id <- year_id[1:(idx-1)]
+  tree_id <- tree_id[1:(idx-1)]
+  
+  
+  # rownames(X) <- row_names
+  return(list(Z = Z, year_id = year_id, tree_id = tree_id))
 }
+  
 
+
+# dat_bc <- wbp_rw_bc
+# wbp_rw_bc_1896 <- wbp_rw_bc %>% 
+#   filter(Year >= 1896)
+# 
+# backcalculate_DBH(wbp_rw_bc_1896)
+# 
+# 
+
+
+# wbp_rw_bc_final <- wbp_rw_bc |>
+#   mutate(RW_in = RW * 0.0393701) |> # creates a new RW that converts from mm to inches
+#   dplyr::arrange(TRE_CN, desc(Year)) |> # this sorts by the tree_id column and then by the year descending 
+#   dplyr::group_by(TRE_CN) |> # grouping by the tree to perform following calculations separately for each tree, instead of summing across whole data set
+#   dplyr::mutate(cum_dia_change = cumsum(lag(RW_in, default = 0))) |> #cumulative sum of the lagged ring width values, cum sum restarts at 0 for each tree
+#   dplyr::mutate(total_rw_change = 2 * cum_dia_change) |> 
+#   dplyr::mutate(dia_est = DIA - total_rw_change)
+# 
+# # to possible consider multiple dbh code 
+# 
+# # Calculate proportional diameter estimates
+# wbp_rw_bc_final <- wbp_rw_bc_final |>
+#   group_by(TRE_CN) |> 
+#   mutate(
+#     proportion = ifelse(
+#       Year > MEASYEAR1 & Year <= MEASYEAR2,
+#       (Year - MEASYEAR1) / (MEASYEAR2 - MEASYEAR1),
+#       NA_real_
+#     ),
+#     dia_est = case_when(
+#       Year <= MEASYEAR1 ~ DIA1 - total_rw_change,
+#       Year > MEASYEAR1 & Year <= MEASYEAR2 ~ DIA1 - proportion * (DIA1 - DIA2) - total_rw_change,
+#       TRUE ~ DIA2 - total_rw_change
+#     )
+#   )
+
+#   
+# 
+
+# wbp_rw_bc <- wbp_rw_bc |>
+#   mutate(RW_in = RW * 0.0393701) |> 
+#   dplyr::arrange(TRE_CN, desc(Year)) |>
+#   dplyr::group_by(TRE_CN) |>
+#   dplyr::mutate(cum_dia_change = cumsum(lag(RW_in, default = 0))) |> 
+#   dplyr::mutate(total_rw_change = 2 * cum_dia_change) |>
+#   dplyr::mutate(dia_est = DIA - total_rw_change)
+#   
+# 
+# 
+#   

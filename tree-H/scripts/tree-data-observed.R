@@ -7,12 +7,16 @@ library(Matrix)
 
 # Load the data
 dat <- read_csv(here::here("tree-H", "data", "processed", "climate_growth_rw.csv"))
+dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_rw_bc.csv"))
 dat_climate <- read_csv(here::here("tree-H", "data", "processed", "climate_data_all.csv"))
+
+dat <- dat %>% left_join(dat_bc)
   
 # Load the functions
 source(here::here("tree-H", "R", "check_overlap.R")) 
 source(here::here("tree-H", "R", "make_X.R")) 
 source(here::here("tree-H", "R", "make_H.R")) 
+source(here::here("tree-H", "R", "make_annualizeDBH.R")) 
 
 # Check the data sources for overlap and lack of overlap
 missing_overlap <- check_overlap(dat, dat_climate)
@@ -41,6 +45,9 @@ X        <- fit_list$X
 year_id  <- fit_list$year_id
 site_id  <- fit_list$site_id
 
+z_list  <- backcalculate_DBH(dat)
+Z       <- z_list$Z   
+
 
 source(here::here("tree-H", "R", "make_bspline.R"))
 # Note: THIS IS TOO LARGE TO FIT AS CURRENTLY IMPLEMENTED
@@ -48,18 +55,27 @@ source(here::here("tree-H", "R", "make_bspline.R"))
 
 source(here::here("tree-H", "R", "make_bspline.R"))
 X_poly <- make_polynomials(X)
+X_poly <- make_polynomials(X)
 
 
 # Create the H matrix for change of support/alignment
 H <- make_H(dat, fit_list)
 # Convert H to a sparse matrix
 H <- Matrix(H, sparse = TRUE)
+
 # Generate the "design" matrix for a linear regression
 HX <- as.matrix(H %*% X)
 
+Z[Z <= 0]= 0.1
+XZ <- cbind(HX, log(Z))
+hist(Z)
+
+ tibble(Z = Z, year = z_list$year_id, tree = z_list$tree_id)  %>% 
+   ggplot(aes(x=year, y=Z, group = tree)) + 
+   geom_line()
 # Linear model of rw growth as a function of monthly climate
 
-mod <- lm(log(dat$RW + 0.01) ~ HX + 0)
+mod <- lm(log(dat$RW + 0.01) ~ XZ + 0)
 summary(mod)
 
 

@@ -12,8 +12,6 @@ make_X <- function(dat_climate, formula = NULL, functional_form = "linear", verb
     growthyears <- sort(unique(dat_climate$growthyear))
     # NOTE: Ceci will delete first growth year (1895)
     # TO MAKE WORK UNTIL THEN, DELETE 1895 BY HAND AND DELETE THIS CODE LATER
-    growthyears <- growthyears[!(growthyears == 1895)]
-    # DELETE THE ABOVE ONCE making_climate_functions is updated
     sites <- unique(dat_climate$PLT_CN)
     
     n_vars <- dat_climate |> 

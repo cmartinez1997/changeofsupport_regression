@@ -1,13 +1,12 @@
 
 
 
-
 backcalculate_DBH <- function(dat_rw, dat_dbh){
-  #so ideally we will have a data file with ring widths and a data file with diameters 
-  #TRE_CN,DIA_t,MEASYEAR,Year,RW - need these columns in dataframes  these data frames will be created in the scripts
-  #create data frame with empty column for annualized dbh
-  #N is the row where measure year and ring width year are the same
-  #we also need to make sure that it is coming from the same tree
+  # so ideally we will have a data file with ring widths and a data file with diameters 
+  # TRE_CN,DIA_t,MEASYEAR,Year,RW - need these columns in dataframes  these data frames will be created in the scripts
+  # create data frame with empty column for annualized dbh
+  # N is the row where measure year and ring width year are the same
+  # we also need to make sure that it is coming from the same tree
   # come back to problem where there might be multiple cores from one tree
   
   dia_bc <- rep(0, nrow(dat_rw)) # creating an empty vector with backcalculated diameter
@@ -43,3 +42,6 @@ backcalculate_DBH <- function(dat_rw, dat_dbh){
   
 }
 
+
+
+ 
