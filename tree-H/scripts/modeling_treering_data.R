@@ -8,8 +8,8 @@ library(kableExtra)
 library(easystats)
 
 # Load tstats# Load the data
-dat <- read_csv(here::here("tree-H", "data", "processed", "climate_growth_rw.csv"))
-dat_climate <- read_csv(here::here("tree-H", "data", "processed", "climate_data_all.csv"))
+dat <- read_csv(here::here("tree-H", "data", "processed", "utah_climate_growth_rw.csv"))
+dat_climate <- read_csv(here::here("tree-H", "data", "processed", "utah_climate_data_all.csv"))
 
 # Load the functions
 source(here::here("tree-H", "R", "check_overlap.R")) 
