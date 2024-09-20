@@ -10,7 +10,7 @@ make_H <- function(dat, fit_list, verbose = TRUE, n_message = 1000) {
             } 
         }
         dat_row <- dat[i, ]
-        idx <- which((dat_row$Year == fit_list$year_id) & (dat_row$PLT_CN == fit_list$site_id))
+        idx <- which((dat_row$Year == fit_list$year_id) & (dat_row$PLOT_CN == fit_list$site_id))
         if (length(idx) > 1) {
             stop(paste("Multiple records exist for record", i))
         }

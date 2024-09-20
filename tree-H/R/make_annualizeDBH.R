@@ -11,7 +11,7 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
   # TO DO: throw warning if more than one core per tree - add this
   dat <- dat_bc |>
     mutate(RW_in = RW * 0.0393701) |> 
-    dplyr::group_by(TRE_CN) |>
+    dplyr::group_by(CN) |>
     dplyr::arrange(desc(Year)) |>
     dplyr::mutate(cum_dia_change = cumsum(dplyr::lag(RW_in, default = 0))) |> 
     dplyr::mutate(total_rw_change = 2 * cum_dia_change) |> #look into dplyr time series tools 
@@ -19,7 +19,7 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
     ungroup()
   
   years <- sort(unique(dat$Year))
-  trees <- unique(dat$TRE_CN)
+  trees <- unique(dat$CN)
   
   # n_vars <- dat |> 
   #   filter(Year == years[1], TRE_CN == trees[1]) |> 
@@ -56,7 +56,7 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
       temp <-   dat |>
         filter(Year == years[i], TRE_CN == trees[j]) |>  #assumes every year has a ring width measurement
         select(-"Year") |>
-        select(-c("MEASYEAR", "DIA", "TRE_CN", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
+        select(-c("MEASYEAR", "DIA", "CN", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
         unlist() 
       
      

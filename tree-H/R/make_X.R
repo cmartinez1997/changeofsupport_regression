@@ -12,20 +12,20 @@ make_X <- function(dat_climate, formula = NULL, functional_form = "linear", verb
     growthyears <- sort(unique(dat_climate$growthyear))
     # NOTE: Ceci will delete first growth year (1895)
     # TO MAKE WORK UNTIL THEN, DELETE 1895 BY HAND AND DELETE THIS CODE LATER
-    sites <- unique(dat_climate$PLT_CN)
+    sites <- unique(dat_climate$PLOT_CN)
     
     n_vars <- dat_climate |> 
-        filter(growthyear == growthyears[2], PLT_CN == sites[1]) |>
+        filter(growthyear == growthyears[2], PLOT_CN == sites[1]) |>
         pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt")) |>
-        select(-c("PLT_CN", "year", "growthyear")) |>
+        select(-c("PLOT_CN", "year", "growthyear")) |>
         # formula/functonal form here
         #
         ncol()
     
     var_names <- dat_climate |> 
-        filter(growthyear == growthyears[1], PLT_CN == sites[1]) |> 
+        filter(growthyear == growthyears[1], PLOT_CN == sites[1]) |> 
         pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt")) |>
-        select(-c("PLT_CN", "year", "growthyear")) |>
+        select(-c("PLOT_CN", "year", "growthyear")) |>
         names()
     
     X             <- matrix(0, length(growthyears) * length(sites), n_vars)
@@ -40,10 +40,10 @@ make_X <- function(dat_climate, formula = NULL, functional_form = "linear", verb
         if (verbose) message("On year ", i, " out of ", length(growthyears))
         for (j in 1:length(sites)) {
             X[idx, ] <- dat_climate |>
-                filter(growthyear == growthyears[i], PLT_CN == sites[j]) |> 
+                filter(growthyear == growthyears[i], PLOT_CN == sites[j]) |> 
                 select(-"year") |>
                 pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt")) |>
-                select(-c("PLT_CN", "growthyear")) |>
+                select(-c("PLOT_CN", "growthyear")) |>
                 unlist()
             
             row_names[idx]     <- paste(growthyears[i], sites[j])

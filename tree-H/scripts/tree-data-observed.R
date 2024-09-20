@@ -8,9 +8,9 @@ library(mgcv)
 library(gratia)
 
 # Load the data
-dat <- read_csv(here::here("tree-H", "data", "processed", "climate_growth_rw.csv"))
+dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_growth_rw.csv"))
 dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_rw_bc.csv"))
-dat_climate <- read_csv(here::here("tree-H", "data", "processed", "climate_data_all.csv"))
+dat_climate <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_data_all.csv"))
 
 dat <- dat %>% left_join(dat_bc)
   
