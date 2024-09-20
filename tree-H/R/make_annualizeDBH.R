@@ -4,16 +4,19 @@
 ## cecimartinez333@gmail.com
 ## backcalculate tree diameter measurements using FIA DBH and ringwidth data
 
+
+## add an argument, if_fast -- TRUE ..
 backcalculate_DBH <- function(dat_bc, verbose = TRUE){
   # this only handles one core per tree
   # TO DO: throw warning if more than one core per tree - add this
   dat <- dat_bc |>
     mutate(RW_in = RW * 0.0393701) |> 
-    dplyr::arrange(TRE_CN, desc(Year)) |>
     dplyr::group_by(TRE_CN) |>
+    dplyr::arrange(desc(Year)) |>
     dplyr::mutate(cum_dia_change = cumsum(dplyr::lag(RW_in, default = 0))) |> 
     dplyr::mutate(total_rw_change = 2 * cum_dia_change) |> #look into dplyr time series tools 
-    dplyr::mutate(dia_est = DIA - total_rw_change) # this deals with only one DBH/DRC measurement at time of coring, think about more than one DBH meas
+    dplyr::mutate(dia_est = DIA - total_rw_change) |> # this deals with only one DBH/DRC measurement at time of coring, think about more than one DBH meas
+    ungroup()
   
   years <- sort(unique(dat$Year))
   trees <- unique(dat$TRE_CN)
@@ -39,6 +42,12 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
   
   
   idx <- 1
+  
+  # Z <- dat %>%
+  #   arrange(match(Year, years), match(TRE_CN, trees)) %>%
+  #   # complete(Year, TRE_CN, fill = 0) %>%
+  #   pull(dia_est, years, trees)
+  
   for (i in 1:length(years)) {
     if (verbose) message("On year ", i, " out of ", length(years))
     for (j in 1:length(trees)) {
@@ -47,9 +56,10 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
       temp <-   dat |>
         filter(Year == years[i], TRE_CN == trees[j]) |>  #assumes every year has a ring width measurement
         select(-"Year") |>
-        select(-c("TRE_CN", "MEASYEAR", "DIA", "TRE_CN", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
+        select(-c("MEASYEAR", "DIA", "TRE_CN", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
         unlist() 
-    
+      
+     
       if (length(temp) > 0 ) { 
         Z[idx, ] <- temp
         row_names[idx]     <- paste(years[i], trees[j])

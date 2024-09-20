@@ -15,8 +15,8 @@ make_X <- function(dat_climate, formula = NULL, functional_form = "linear", verb
     sites <- unique(dat_climate$PLT_CN)
     
     n_vars <- dat_climate |> 
-        filter(growthyear == growthyears[1], PLT_CN == sites[1]) |> 
-        pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt", "vpd")) |>
+        filter(growthyear == growthyears[2], PLT_CN == sites[1]) |>
+        pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt")) |>
         select(-c("PLT_CN", "year", "growthyear")) |>
         # formula/functonal form here
         #
@@ -24,7 +24,7 @@ make_X <- function(dat_climate, formula = NULL, functional_form = "linear", verb
     
     var_names <- dat_climate |> 
         filter(growthyear == growthyears[1], PLT_CN == sites[1]) |> 
-        pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt", "vpd")) |>
+        pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt")) |>
         select(-c("PLT_CN", "year", "growthyear")) |>
         names()
     
@@ -42,7 +42,7 @@ make_X <- function(dat_climate, formula = NULL, functional_form = "linear", verb
             X[idx, ] <- dat_climate |>
                 filter(growthyear == growthyears[i], PLT_CN == sites[j]) |> 
                 select(-"year") |>
-                pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt", "vpd")) |>
+                pivot_wider(names_from = month, values_from = c("tmin", "tmax", "ppt")) |>
                 select(-c("PLT_CN", "growthyear")) |>
                 unlist()
             

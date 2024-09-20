@@ -7,73 +7,137 @@ library(Matrix)
 library(kableExtra)
 library(easystats)
 
-# Load tstats# Load the data
-dat <- read_csv(here::here("tree-H", "data", "processed", "utah_climate_growth_rw.csv"))
-dat_climate <- read_csv(here::here("tree-H", "data", "processed", "utah_climate_data_all.csv"))
+# Load the data
+dat_u <- read_csv(here::here("tree-H", "data", "processed", "utah_climate_growth_rw.csv"))
+dat_climate_u <- read_csv(here::here("tree-H", "data", "processed", "utah_climate_data_all.csv"))
+dat_bc_u <- read_csv("tree-H/data/processed/es_rw_bc.csv")
+
+# for now truncate dat_bc to 1896 
+
 
 # Load the functions
 source(here::here("tree-H", "R", "check_overlap.R")) 
 source(here::here("tree-H", "R", "make_X.R")) 
 source(here::here("tree-H", "R", "make_H.R")) 
 source(here::here("tree-H", "R", "make_scaling_functions.R")) 
+source(here::here("tree-H", "R", "make_annualizeDBH.R"))
+
 
 # Check the data sources for overlap and lack of overlap
-missing_overlap <- check_overlap(dat, dat_climate)
+
+missing_overlap_u <- check_overlap(dat_u, dat_climate_u)
 
 # What data in the tree rings are not in the climate data?
-dat[missing_overlap$tree_CN_missing, ]
-unique(dat$PLT_CN[missing_overlap$tree_CN_missing])
+dat_u[missing_overlap_u$tree_CN_missing, ]
+
+
+unique(dat_u$PLT_CN[missing_overlap_u$tree_CN_missing])
 
 # What data in the climate are not in the tree ring data?
-dat[missing_overlap$tree_year_missing, ]
-sort(unique(dat$Year[missing_overlap$tree_year_missing]))
+dat_u[missing_overlap_u$tree_year_missing, ]
+sort(unique(dat$Year[missing_overlap_u$tree_year_missing]))
 
 # Drop the missing data
-message("About ", round(mean((missing_overlap$tree_CN_missing) | (missing_overlap$tree_year_missing)) * 100, digits = 0), "% of tree ring data will be dropped")
-message("About ", round(mean((missing_overlap$climate_CN_missing) | (missing_overlap$climate_year_missing)) * 100, digits = 0), "% of climate ring data will be dropped")
+message("About ", round(mean((missing_overlap_u$tree_CN_missing) | (missing_overlap_u$tree_year_missing)) * 100, digits = 0), "% of tree ring data will be dropped")
+message("About ", round(mean((missing_overlap_u$climate_CN_missing) | (missing_overlap_u$climate_year_missing)) * 100, digits = 0), "% of climate ring data will be dropped")
 
-dat         <- dat[!missing_overlap$tree_CN_missing & !missing_overlap$tree_year_missing, ]
-dat_climate <- dat_climate[!missing_overlap$climate_CN_missing & !missing_overlap$climate_year_missing, ]
-
-
-# Create the design matrix (NOTE: all RW increments are lindear combinations of current year climate variables)
+dat_u         <- dat_u[!missing_overlap$tree_CN_missing & !missing_overlap$tree_year_missing, ]
+dat_climate_u <- dat_climate_u[!missing_overlap$climate_CN_missing & !missing_overlap$climate_year_missing, ]
+dat_bc_u      <- dat_bc_u[!missing_overlap$tree_CN_missing & !missing_overlap$tree_year_missing, ]
+# Create the design matrix (NOTE: all RW increments are linear combinations of current year climate variables)
 # NOTE: This is currently slow but could be made faster
 # NOTE: It might make sense to center and scale these here, not currently implemented 
-fit_list <- make_X(dat_climate)
-X        <- fit_list$X
-year_id  <- fit_list$year_id
-site_id  <- fit_list$site_id
+fit_list_u <- make_X(dat_climate_u)
+X_u        <- fit_list_u$X
+year_id_u  <- fit_list_u$year_id
+site_id_u  <- fit_list_u$site_id
+
+
+# Create the size backcalculated matrix
+Z_list_u     <- backcalculate_DBH(dat_bc_u)
+Z_u          <- Z_list_u$Z
+year_id_Z_u  <- Z_list_u$year_id
+tree_id_u   <- Z_list_u$tree_id
+
+Z_dat_u <- as.data.frame(Z_list_u)
+
+ggplot(Z_dat_u) + 
+  geom_line(aes(x = year_id, y = Z_u, group = tree_id))
+
+ggplot(dat_u) + 
+  geom_line(aes(Year, log(RW + 0.001), group = TRE_CN)) + 
+  stat_smooth(aes(Year, log(RW + 0.001)))
+
+ggplot(dat_u) + 
+  geom_line(aes(Z, log(RW + 0.001), group = TRE_CN)) + 
+  stat_smooth(aes(Z, log(RW + 0.001)))
+
 
 
 source(here::here("tree-H", "R", "make_bspline.R"))
 # Note: THIS IS TOO LARGE TO FIT AS CURRENTLY IMPLEMENTED
-# X_splines <- make_bspline(X, interaction = TRUE)
+X_splines_u <- make_bspline(X, interaction = FALSE)
 
 source(here::here("tree-H", "R", "make_polynomials.R"))
-X_poly <- make_polynomials(X, intearction = T)
+X_poly_u <- make_polynomials(X, intearction = T)
 
 
 # Create the H matrix for change of support/alignment
-H <- make_H(dat, fit_list)
+H_u <- make_H(dat_u, fit_list_u)
 # Convert H to a sparse matrix
-H <- Matrix(H, sparse = TRUE)
+H_u <- Matrix(H_u, sparse = TRUE) # soemthign weird is happening here when doing the spline
 # Generate the "design" matrix for a linear regression
-HX <- as.matrix(H %*% X)
+HX_u <- as.matrix(H_u %*% X_u)
+
+str(X_u)
+str(Z_u)
+str(HX_u)
+
+HXZ_u <- cbind(HX_u, Z_u)
+
+HX_splines_u <- as.matrix(H_u %*% X_splines_u)
+str(X_splines_u)
+str(H_u)
+
+H_u %*% X_splines_u
+nnz(H_u)
 
 # Linear model of rw growth as a function of monthly climate
 
-mod <- lm(log(dat$RW + 0.01) ~ HX + 0)
+mod <- lm(log(dat$RW + 0.01) ~  HX)
+mod_size <- lm(log(dat$RW + 0.01) ~  Z + I(Z^2))
 summary(mod)
+summary(mod_size)
 
+HX_splines <- as.matrix(H) %*% X_splines
+str(HX)
+str(X)
+str(z_mat$Z)
 # include quadratic effects rw as function of monthly climate with quadratic effects
 
 mod_quad <- lm(log(dat$RW + 0.01) ~ HX + I(HX^2) + 0)
 summary(mod_quad)
 
 
+mod_spline <- lm(log(dat$RW + 0.01) ~ HX_splines)
+p <- colnames(HX)
+print(p)
+f <- as.formula(paste0("log(dat$RW + 0.01)~",paste0("s(",p,")",collapse="+")))
+mod_mgcv <- gam(f, data = data.frame(HX))
+summary(mod_mgcv)
+summary(mod_spline)
+
+plot(mod_mgcv)
+
+AIC(mod, mod_spline)
+BIC(mod, mod_spline)
+AIC(mod_mgcv, mod_spline)
+BIC(mod_mgcv, mod_spline)
+
+
 # function to fit regression models, just trying out ----------------------
 # before this make sure necessary functions are loaded for this function 
-fit_models <- function(dat, dat_climate, model_types = c("linear"), scaling = c("none"), random_effects = FALSE) {
+fit_models <- function(dat, dat_climate_u, model_types = c("linear"), scaling = c("none"), random_effects = FALSE) {
   
   climate_vars <- NULL
   clim_norms <- NULL

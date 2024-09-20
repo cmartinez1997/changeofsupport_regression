@@ -4,6 +4,8 @@
 library(tidyverse)
 library(here)
 library(Matrix)
+library(mgcv)
+library(gratia)
 
 # Load the data
 dat <- read_csv(here::here("tree-H", "data", "processed", "climate_growth_rw.csv"))
@@ -40,13 +42,85 @@ dat_climate <- dat_climate[!missing_overlap$climate_CN_missing & !missing_overla
 # Create the design matrix (NOTE: all RW increments are linear combinations of current year climate variables)
 # NOTE: This is currently slow but could be made faster
 # NOTE: It might make sense to center and scale these here, not currently implemented 
-fit_list <- make_X(dat_climate)
-X        <- fit_list$X
-year_id  <- fit_list$year_id
-site_id  <- fit_list$site_id
+fit_list   <- make_X(dat_climate)
+X          <- fit_list$X
+year_id_X  <- fit_list$year_id
+site_id    <- fit_list$site_id
 
-z_list  <- backcalculate_DBH(dat)
-Z       <- z_list$Z   
+# Create the size backcalculated matrix, this takes a while
+Z_list     <- backcalculate_DBH(dat_bc)
+Z          <- Z_list$Z
+year_id_Z  <- Z_list$year_id
+tree_id    <- Z_list$tree_id
+
+# Create the H matrix for change of support/alignment, this happens fairly quickly
+H <- make_H(dat, fit_list)
+# Convert H to a sparse matrix
+H <- Matrix(H, sparse = T)
+# Generate the "design" matrix for a linear regression
+HX <- as.matrix(H %*% X)
+# binding together all the matrices for the regression
+HXZ <- cbind(HX, Z)
+
+# Data exploration of the backcalaculated matrix
+Z_dat <- as.data.frame(Z_list)
+
+ggplot(Z_dat) + 
+  geom_line(aes(x = year_id, y = Z, group = tree_id))
+
+ggplot(dat) + 
+  geom_line(aes(Year, log(RW + 0.001), group = TRE_CN)) + 
+  stat_smooth(aes(Year, log(RW + 0.001)))
+
+
+HX_splines <- as.matrix(H %*% X_splines)
+str(X_splines)
+str(H)
+
+H %*% X_splines
+nnz(H)
+
+# Linear model of rw growth as a function of monthly climate
+
+mod <- lm(log(dat$RW + 0.01) ~  HX)
+mod_size <- lm(log(dat$RW + 0.01) ~  Z + I(Z^2))
+summary(mod)
+summary(mod_size)
+
+str(dat)
+str(Z)
+
+HX_splines <- as.matrix(H) %*% X_splines
+str(HX)
+str(X)
+str(z_mat$Z)
+
+
+# include quadratic effects rw as function of monthly climate with quadratic effects
+
+mod_quad <- lm(log(dat$RW + 0.01) ~ HX + I(HX^2) + 0)
+summary(mod_quad)
+
+
+mod_spline <- lm(log(dat$RW + 0.01) ~ HX_splines)
+p <- colnames(HX)
+print(p)
+f <- as.formula(paste0("log(dat$RW + 0.01)~",paste0("s(",p,")",collapse="+")))
+
+mod_mgcv <- gam(f, data = data.frame(HX))
+
+summary(mod_mgcv)
+summary(mod_spline)
+
+
+# plotting the mgcv with the gratia package for visualization
+plot(mod_mgcv)
+
+AIC(mod, mod_spline)
+BIC(mod, mod_spline)
+AIC(mod_mgcv, mod_spline)
+BIC(mod_mgcv, mod_spline)
+
 
 
 source(here::here("tree-H", "R", "make_bspline.R"))

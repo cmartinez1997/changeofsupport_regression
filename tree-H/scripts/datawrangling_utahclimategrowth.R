@@ -87,6 +87,19 @@ tmax_ut <- read_csv(here::here("tree-H", "data","raw", "utah_tmax_df.csv"))
 tmin_ut <- read_csv(here::here("tree-H", "data", "raw", "utah_tmin_df.csv"))
 vpd_ut <- read_csv(here::here("tree-H", "data", "raw", "utah_vpd_df.csv"))
 
+ppt_ut <- ppt_ut %>% 
+  select(-TRE_CN) %>% 
+  distinct(PLT_CN, .keep_all = TRUE)
+tmax_ut <- tmax_ut %>% 
+  select(-TRE_CN) %>% 
+  distinct(PLT_CN, .keep_all = TRUE)
+tmin_ut <- tmin_ut %>% 
+  select(-TRE_CN) %>% 
+  distinct(PLT_CN, .keep_all = TRUE)
+vpd_ut <- vpd_ut %>% 
+  select(-TRE_CN) %>% 
+  distinct(PLT_CN, .keep_all = TRUE)
+
 # turn climate data into long form and make new columns for year and month from column headers when the file is in wide format
 
 ut_tmin_long <- tmin_ut %>%
@@ -115,40 +128,29 @@ ut_vpd_long <- vpd_ut %>%
   select(-variable, -CORE_CN, -LAT, -LON)
 
 # Combine the data frames into one climate dataframe
-ut_tmin_long <- distinct(ut_tmin_long, TRE_CN, PLT_CN, year, month, .keep_all = TRUE)
-ut_tmax_long <- distinct(ut_tmax_long, TRE_CN, PLT_CN, year, month, .keep_all = TRUE)
-ut_ppt_long <- distinct(ut_ppt_long, TRE_CN, PLT_CN, year, month, .keep_all = TRUE)
-ut_vpd_long <- distinct(ut_vpd_long, TRE_CN, PLT_CN, year, month, .keep_all = TRUE)
+ut_tmin_long <- distinct(ut_tmin_long, PLT_CN, year, month, .keep_all = TRUE)
+ut_tmax_long <- distinct(ut_tmax_long, PLT_CN, year, month, .keep_all = TRUE)
+ut_ppt_long <- distinct(ut_ppt_long, PLT_CN, year, month, .keep_all = TRUE)
+ut_vpd_long <- distinct(ut_vpd_long, PLT_CN, year, month, .keep_all = TRUE)
 
-climate_dat <- left_join(ut_tmin_long, ut_tmax_long, by = c("TRE_CN", "PLT_CN", "year", "month")) %>%
-  left_join(., ut_ppt_long, by = c( "TRE_CN","PLT_CN", "year", "month")) %>% 
-  left_join(., ut_vpd_long, by = c("TRE_CN", "PLT_CN", "year", "month"))
+climate_dat <- left_join(ut_tmin_long, ut_tmax_long, by = c("PLT_CN", "year", "month")) %>%
+  left_join(., ut_ppt_long, by = c("PLT_CN", "year", "month")) %>% 
+  left_join(., ut_vpd_long, by = c("PLT_CN", "year", "month"))
 
 #reorder columns and get rid of 1895 growth year
 climate_dat <- climate_dat %>%
-  select(TRE_CN, PLT_CN, year, month, tmin, tmax, ppt, vpd) %>% 
+  select(PLT_CN, year, month, tmin, tmax, ppt, vpd) %>% 
   filter(!(year == 1895 & month >= 1 & month <= 8))
 
-climate_dat$TRE_CN <- as.character(climate_dat$TRE_CN)
 climate_dat$PLT_CN <- as.character(climate_dat$PLT_CN)
 ## making seasonal climate variables, refer to climate-growth analyses --> do this at some point, have not done yet
 
 ## check to make sure that the PLT_CN matches in both dfs (climate and ring width) and filter out the rows for which there isn't a match
 
-unique_climate <- unique(climate_dat$TRE_CN)
-unique_es <- unique(ut_rw_ES$TRE_CN)
-
-trees_match <- unique(climate_dat$TRE_CN) %>% 
-  intersect(unique(ut_rw_ES$TRE_CN))  #52 trees match, yay
-
 plots_match <- unique(climate_dat$PLT_CN) %>% 
   intersect(unique(ut_rw_ES$PLT_CN))  #46 plots match
 
 # add climate norms and growth year (biologically significant years) to df -------------------------------------------------
-
-climate_dat <- climate_dat %>% 
-  select(-TRE_CN)
-
 
 source(here::here("tree-H", "R", "make_climate_functions.R")) 
 
