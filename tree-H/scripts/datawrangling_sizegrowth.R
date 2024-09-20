@@ -19,15 +19,15 @@ source(here::here("tree-H", "R", "make_annualizeDBH.R"))
 
 wbp_size_dat <- wbp_rw <- left_join(wbp_rw, wbp_meta)
 wbp_size_dat <- wbp_size_dat %>% select(CN, MEASYEAR, Year, RW, DIA) %>% 
-  rename(DIA_t = DIA)
+  rename(TRE_CN = CN, DIA_t = DIA)
 
-wbp_size_dat$CN <- as.character(wbp_size_dat$CN)
+wbp_size_dat$TRE_CN <- as.character(wbp_size_dat$TRE_CN)
 
 # run function -----------------------------------------------------------
 annualizedDBH <- wbp_size_dat %>% 
-  group_by(CN) %>% 
-  arrange(CN,Year) %>% 
-    mutate(DIA_bc = backcalculate_DBH(CN = CN, MEASYEAR = MEASYEAR, Year = Year, RW = RW, DIA_t = DIA_t))
+  group_by(TRE_CN) %>% 
+  arrange(TRE_CN,Year) %>% 
+    mutate(DIA_bc = backcalculate_DBH())
 
 #did DIA_bc = DIA_t when last RW year was 1 year less than MEASYEAR
 check_data <- annualizedDBH[which(annualizedDBH$Year + 1 == annualizedDBH$MEASYEAR),]
