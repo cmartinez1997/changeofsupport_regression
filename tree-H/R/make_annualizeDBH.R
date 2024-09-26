@@ -4,10 +4,8 @@
 ## cecimartinez333@gmail.com
 ## backcalculate tree diameter measurements using FIA DBH and ringwidth data
 
-
-## add an argument, if_fast -- TRUE ..
-backcalculate_DBH <- function(dat_bc, verbose = TRUE){
-  # this only handles one core per tree
+backcalculate_DBH <- function(dat_bc, verbose = TRUE){ # this function requires a df in a specific format with the argument of that df - see datawurangling_sizegrwoth
+  # this only handles one core per tree at the moment
   # TO DO: throw warning if more than one core per tree - add this
   dat <- dat_bc |>
     mutate(RW_in = RW * 0.0393701) |> 
@@ -18,91 +16,58 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
     dplyr::mutate(dia_est = DIA - total_rw_change) |> # this deals with only one DBH/DRC measurement at time of coring, think about more than one DBH meas
     ungroup()
   
+  # this is setting up for matrix construction (Z-matrix)
   years <- sort(unique(dat$Year))
   trees <- unique(dat$TRE_CN)
   
-  # n_vars <- dat |> 
-  #   filter(Year == years[1], TRE_CN == trees[1]) |> 
-  #   select(-c( "MEASYEAR", "DIA", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
-  #   # formula/functonal form here
-  #   #
-  #   ncol()
-  # 
-  # 
-  # var_names <- dat |> 
-  #   filter(Year == years[1], TRE_CN == trees[1]) |> 
-  #   select(-c( "MEASYEAR", "DIA", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
-  #   
+  # initializing the empty matrix #length years by length trees
   
-  Z             <- matrix(0, length(years) * length(trees), 1)
-  colnames(Z)   <- "dbh_bc"
+  Z             <- matrix(0, length(years) * length(trees), 1) # this holds the backcauculated dbh values
+  colnames(Z)   <- "dbh_bc" #column name of Z is dbh_bc
   row_names     <- rep(0, length(years) * length(trees))
   year_id       <- rep(0, length(years) * length(trees))
   tree_id       <- rep(0, length(years) * length(trees))
   
-  
-  idx <- 1
+  idx <- 1 # index variable to keep track of current row in the matrix Z
   
   # Z <- dat %>%
   #   arrange(match(Year, years), match(TRE_CN, trees)) %>%
   #   # complete(Year, TRE_CN, fill = 0) %>%
   #   pull(dia_est, years, trees)
   
-  for (i in 1:length(years)) {
-    if (verbose) message("On year ", i, " out of ", length(years))
-    for (j in 1:length(trees)) {
+  for (i in 1:length(years)) { #this iterates over each year i
+    if (verbose) message("On year ", i, " out of ", length(years)) 
+    for (j in 1:length(trees)) { # this iterates over each tree in each year
       
       
       temp <-   dat |>
-        filter(Year == years[i], TRE_CN == trees[j]) |>  #assumes every year has a ring width measurement
-        select(-"Year") |>
-        select(-c("TRE_CN", "MEASYEAR", "DIA", "RW", "RW_in", "cum_dia_change", "total_rw_change")) |>
+        filter(Year == years[i], TRE_CN == trees[j]) |>  #assumes every year has a ring width measurement, this filters data to only include rows for the current year and tree
+        select(-"Year") |> #
+        select(-c("TRE_CN", "MEASYEAR", "DIA", "RW", "RW_in", "cum_dia_change", "total_rw_change", "PLOT_CN")) |>
         unlist() 
       
-     
-      if (length(temp) > 0 ) { 
-        Z[idx, ] <- temp
-        row_names[idx]     <- paste(years[i], trees[j])
+      # this stores the values in the matrix
+      if (length(temp) > 0 ) { #checks if temp contains any values, if it does, it stores the result
+        Z[idx, ] <- temp #okay this instersts the value from temp into matrix Z and current index (idx)
+        row_names[idx]     <- paste(years[i], trees[j])  # stores corresponding year and tree identifiers for this row in row names, year id adn tree id
         year_id[idx]       <- years[i]
         tree_id[idx]       <- trees[j]
-        idx                <- idx + 1  
+        idx                <- idx + 1  #then it increments the inex to move to the net row in Z
         
       }
       
-      
-      
     }
   }
-  Z <- Z[1:(idx-1), ]
-  year_id <- year_id[1:(idx-1)]
+  Z <- Z[1:(idx-1), ] #Trims the matrix Z to remove any unused rows (those with 0s, if the loop didn't use all rows)
+  year_id <- year_id[1:(idx-1)] #also trims
   tree_id <- tree_id[1:(idx-1)]
   
 
   # rownames(X) <- row_names
-  return(list(Z = Z, year_id = year_id, tree_id = tree_id))
+  return(list(Z = Z, year_id = year_id, tree_id = tree_id)) #returns a list with three elements. Z matrix, year_id(correspoding years for each row), and tree_id(corresopding tree Ids for each row)
 }
   
 
-
-# dat_bc <- wbp_rw_bc
-# wbp_rw_bc_1896 <- wbp_rw_bc %>% 
-#   filter(Year >= 1896)
-# 
-# backcalculate_DBH(wbp_rw_bc_1896)
-# 
-# 
-
-
-# wbp_rw_bc_final <- wbp_rw_bc |>
-#   mutate(RW_in = RW * 0.0393701) |> # creates a new RW that converts from mm to inches
-#   dplyr::arrange(TRE_CN, desc(Year)) |> # this sorts by the tree_id column and then by the year descending 
-#   dplyr::group_by(TRE_CN) |> # grouping by the tree to perform following calculations separately for each tree, instead of summing across whole data set
-#   dplyr::mutate(cum_dia_change = cumsum(lag(RW_in, default = 0))) |> #cumulative sum of the lagged ring width values, cum sum restarts at 0 for each tree
-#   dplyr::mutate(total_rw_change = 2 * cum_dia_change) |> 
-#   dplyr::mutate(dia_est = DIA - total_rw_change)
-# 
-# # to possible consider multiple dbh code 
-# 
 # # Calculate proportional diameter estimates
 # wbp_rw_bc_final <- wbp_rw_bc_final |>
 #   group_by(TRE_CN) |> 
@@ -119,17 +84,4 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){
 #     )
 #   )
 
-#   
-# 
-
-# wbp_rw_bc <- wbp_rw_bc |>
-#   mutate(RW_in = RW * 0.0393701) |> 
-#   dplyr::arrange(TRE_CN, desc(Year)) |>
-#   dplyr::group_by(TRE_CN) |>
-#   dplyr::mutate(cum_dia_change = cumsum(lag(RW_in, default = 0))) |> 
-#   dplyr::mutate(total_rw_change = 2 * cum_dia_change) |>
-#   dplyr::mutate(dia_est = DIA - total_rw_change)
-#   
-# 
-# 
-#   
+#
