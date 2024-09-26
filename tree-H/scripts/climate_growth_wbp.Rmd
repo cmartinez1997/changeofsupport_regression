@@ -1,0 +1,81 @@
+---
+title: "Climate Growth Analysis for Whitebark Pine"
+author: "Ceci Martinez"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+header-includes:
+- \renewcommand*\familydefault{\sfdefault} %% this picks a sans serif font
+- \usepackage[T1]{fontenc}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(class.source = 'number-lines', echo = TRUE)
+```
+
+## Load Packages
+
+
+```{r, message=FALSE, warning=FALSE}
+
+library(tidyverse)  # for data wrangling and visualization
+library(here)       # for relativizing file paths 
+library(Matrix)     # for handling sparse matrices efficiently
+library(lme4)       # for running linear models
+library(mgcv)       # for running GAMS
+library(gratia)     # for visualizing GAM models
+
+```
+
+## Load data
+
+Load the data for the analysis: tree ring growth, back-calculated size, and climate data
+```{r, message=FALSE, warning=FALSE}
+
+dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_growth_rw.csv"))
+dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size.csv"))
+dat_climate <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_data_all.csv"))
+
+```
+
+## Load Functions
+
+Source the custom R functions for overlap checking, matrix creation, and annual DBH calculations
+
+```{r, message=FALSE, warning=FALSE}
+
+source(here::here("tree-H", "R", "check_overlap.R")) 
+source(here::here("tree-H", "R", "make_X.R")) 
+source(here::here("tree-H", "R", "make_H.R")) 
+source(here::here("tree-H", "R", "make_annualizeDBH.R"))
+
+```
+
+## Data Exploration and Alignment
+
+```{r, message=FALSE, warning=FALSE}
+
+# check for overlap and missing data
+missing_overlap <- check_overlap(dat, dat_climate)
+
+# Identify tree ring data missing in climate data and vice versa
+dat[missing_overlap$tree_CN_missing, ]
+unique(dat$PLOT_CN[missing_overlap$tree_CN_missing])
+
+dat[missing_overlap$tree_year_missing, ]
+sort(unique(dat$Year[missing_overlap$tree_year_missing]))
+
+# Drop rows with missing data from both datasets
+message("About ", round(mean((missing_overlap$tree_CN_missing) | (missing_overlap$tree_year_missing)) * 100, digits = 0), "% of tree ring data will be dropped")
+message("About ", round(mean((missing_overlap$climate_CN_missing) | (missing_overlap$climate_year_missing)) * 100, digits = 0), "% of climate ring data will be dropped")
+
+# Filter out rows with missing overlaps in tree ring and climate data
+dat <- dat[!missing_overlap$tree_CN_missing & !missing_overlap$tree_year_missing, ]
+dat_climate <- dat_climate[!missing_overlap$climate_CN_missing & !missing_overlap$climate_year_missing, ]
+
+```
+
+
+## Matrix Construction for Regression
+
