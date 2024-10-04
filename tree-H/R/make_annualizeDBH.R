@@ -14,6 +14,7 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){ # this function requires 
     dplyr::mutate(cum_dia_change = cumsum(dplyr::lag(RW_in, default = 0))) |> 
     dplyr::mutate(total_rw_change = 2 * cum_dia_change) |> #look into dplyr time series tools 
     dplyr::mutate(dia_est = DIA - total_rw_change) |> # this deals with only one DBH/DRC measurement at time of coring, think about more than one DBH meas
+    dplyr::mutate(dia_est = case_when(dia_est < 0 ~ 0, TRUE ~dia_est)) %>% # check for when cum_dia change <0
     ungroup()
   
   # this is setting up for matrix construction (Z-matrix)
@@ -27,6 +28,8 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){ # this function requires 
   row_names     <- rep(0, length(years) * length(trees))
   year_id       <- rep(0, length(years) * length(trees))
   tree_id       <- rep(0, length(years) * length(trees))
+  site_id       <- rep(0, length(years) * length(trees))
+
   
   idx <- 1 # index variable to keep track of current row in the matrix Z
   
@@ -39,11 +42,16 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){ # this function requires 
     if (verbose) message("On year ", i, " out of ", length(years)) 
     for (j in 1:length(trees)) { # this iterates over each tree in each year
       
-      
       temp <-   dat |>
         filter(Year == years[i], TRE_CN == trees[j]) |>  #assumes every year has a ring width measurement, this filters data to only include rows for the current year and tree
         select(-"Year") |> #
         select(-c("TRE_CN", "MEASYEAR", "DIA", "RW", "RW_in", "cum_dia_change", "total_rw_change", "PLOT_CN")) |>
+        unlist() 
+      
+      temp_site <-   dat |>
+        filter(Year == years[i], TRE_CN == trees[j]) |>  #assumes every year has a ring width measurement, this filters data to only include rows for the current year and tree
+        select(-"Year") |> #
+        select(-c("TRE_CN", "MEASYEAR", "DIA", "RW", "RW_in", "cum_dia_change", "total_rw_change", "dia_est")) |>
         unlist() 
       
       # this stores the values in the matrix
@@ -52,6 +60,7 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){ # this function requires 
         row_names[idx]     <- paste(years[i], trees[j])  # stores corresponding year and tree identifiers for this row in row names, year id adn tree id
         year_id[idx]       <- years[i]
         tree_id[idx]       <- trees[j]
+        site_id[idx]       <- temp_site
         idx                <- idx + 1  #then it increments the inex to move to the net row in Z
         
       }
@@ -61,10 +70,11 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){ # this function requires 
   Z <- Z[1:(idx-1), ] #Trims the matrix Z to remove any unused rows (those with 0s, if the loop didn't use all rows)
   year_id <- year_id[1:(idx-1)] #also trims
   tree_id <- tree_id[1:(idx-1)]
+  site_id <- site_id[1:(idx-1)]
   
 
   # rownames(X) <- row_names
-  return(list(Z = Z, year_id = year_id, tree_id = tree_id)) #returns a list with three elements. Z matrix, year_id(correspoding years for each row), and tree_id(corresopding tree Ids for each row)
+  return(list(Z = Z, year_id = year_id, tree_id = tree_id, site_id = site_id)) #returns a list with three elements. Z matrix, year_id(correspoding years for each row), and tree_id(corresopding tree Ids for each row)
 }
   
 

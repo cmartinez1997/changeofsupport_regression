@@ -33,6 +33,7 @@ head(APEw)
 
 melt(as.matrix(rwl_combine))
 
+# adding the as.matrix function preseves the year variable name
 rwl_long <- reshape2::melt(as.matrix(rwl_combine)) %>% 
   rename(Year = Var1, CN = Var2, RW = value)
 head(rwl_long)
@@ -44,3 +45,4 @@ rwl_long <- rwl_long %>%
 
 output_file <- file.path("tree-H/data/raw", "wbp_new_rwl.csv")
 write.csv(rwl_long, output_file, row.names = FALSE)
+

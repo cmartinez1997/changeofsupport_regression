@@ -1,11 +1,19 @@
 # Make sure you have the RStudio project loaded and active
 # Then run renv::activate() and renv::restore() when you first setup the project to install packages
 
-library(tidyverse)
+
+# load packages -----------------------------------------------------------
+
+
 library(here)
 library(Matrix)
 library(mgcv)
 library(gratia)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(dplyr)
+
 
 # Load the data
 dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_growth_rw.csv"))
@@ -39,7 +47,6 @@ fit_list   <- make_X(dat_climate)
 X          <- fit_list$X
 # rows are plots x time and columns are the environmental covariates
 year_id_X  <- fit_list$year_id
-
 site_id    <- fit_list$site_id
 
 # Create the size backcalculated matrix
@@ -48,13 +55,42 @@ Z_list     <- backcalculate_DBH(dat_bc)
 Z          <- Z_list$Z
 year_id_Z  <- Z_list$year_id
 tree_id    <- Z_list$tree_id
+site_id_Z  <- Z_list$site_id
+
+# Check X and Z are aligned
+all.equal(H %*% year_id_X, year_id_Z)
+all.equal(site_id, site_id_Z)
+
+length(H %*% year_id_X)
+all.equal(as.vector(H %*% year_id_X), year_id_Z)
+plot(as.vector(H %*% year_id_X), year_id_Z) # this should be a one to one line
+
+all.equal(as.vector(H %*% site_id), site_id_Z)
+plot(as.vector(H %*% site_id), site_id_Z) # this should be a one to one line
+
+str(dat)
+str(dat_bc)
+data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id) %>% 
+  left_join(dat) 
+
+dat_fit <- dat %>% left_join(dat_bc) %>% left_join(data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id))
+  # dat_fit for bc and 
+  # align climate to the dataframe - maybe through another join (choose vars well) join_by !!! 
+dat_fit %>% 
+  ggplot(aes(y = log(RW + 0.001), x = Z, color = TRE_CN) ) + 
+  geom_line() + 
+  stat_smooth()
+
+mod_size <- lm(log(RW + 0.001) ~ Z + I(Z^2), data = dat_fit)
+summary(mod_size) #matrices align issue - redo the matrix 
+
 
 # Create the H matrix for change of support/alignment, this happens fairly quickly
 H <- make_H(dat, fit_list) #maps cores to trees with same linked diameter
 # Convert H to a sparse matrix
 H <- Matrix(H, sparse = T) 
 
-
+str(H)
 # Generate the "design" matrix for a linear regression
 HX <- as.matrix(H %*% X)
 # binding together all the matrices for the regression
@@ -74,6 +110,17 @@ ggplot(dat) +
   geom_line(aes(Year, log(RW + 0.001), group = TRE_CN)) + 
   stat_smooth(aes(Year, log(RW + 0.001)))
 
+dat %>% mutate(Z = Z) %>%
+  ggplot() + 
+  geom_point(aes(x = Z, log(RW + 0.001), group = TRE_CN)) 
+  # stat_smooth(aes(Z, log(RW + 0.001), group = TRE_CN))
+
+data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id) %>% 
+   left_join(dat) %>% 
+  ggplot() + 
+  geom_line(aes(x = Year, y = Z, group = TRE_CN, color = TRE_CN)) 
+
+
 
 # HX_splines <- as.matrix(H %*% X_splines)
 # str(X_splines)
@@ -85,15 +132,49 @@ ggplot(dat) +
 # Linear model of rw growth as a function of monthly climate
 sum(dat$RW <= 0)
 
+
+# mod diagnostics climate only
 mod <- lm(log(dat$RW + 0.01) ~  HX)
+mod_summary <- summary(mod)
+mod_coefficients <- mod_summary$coefficients %>% 
+ as.data.frame() 
+colnames(mod_coefficients) <- c("Estimate", "Std. Error", "t value", "Pr(>|t|)")
+
+significant_coeffs <- mod_coefficients %>%
+  filter(`Pr(>|t|)` < 0.05)
+significant_coeffs_table <- significant_coeffs %>%
+  mutate(Signif = cut(`Pr(>|t|)`, 
+                      breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
+                      labels = c("***", "**", "*", ".", " ")))
+significant_coeffs_table %>%
+  kable(format = "html", digits = 4, caption = "Significant Effects Table") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+
+#size only
+
 mod_size <- lm(log(dat$RW + 0.01) ~  Z + I(Z^2))
-summary(mod)
-summary(mod_size)
+modsize_summary <- summary(mod_size)
+modsize_coefficients <- modsize_summary$coefficients %>% 
+  as.data.frame() 
+colnames(modsize_coefficients) <- c("Estimate", "Std. Error", "t value", "Pr(>|t|)")
+
+plot(mod_size)
+modsize_coefficients %>%
+  kable(format = "html", digits = 4, ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+significant_coeffs_size <- modsize_coefficients %>%
+  filter(`Pr(>|t|)` < 0.05)
+significant_coeffs_table_size <- significant_coeffs_size %>%
+  mutate(Signif = cut(`Pr(>|t|)`, 
+                      breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
+                      labels = c("***", "**", "*", ".", " ")))
+significant_coeffs_table_size %>%
+  kable(format = "html", digits = 4, ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+
 
 str(dat)
 str(Z)
-
-
 
 
 
