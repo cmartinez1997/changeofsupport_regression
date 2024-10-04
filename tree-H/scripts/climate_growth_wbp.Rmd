@@ -1,0 +1,87 @@
+---
+title: "Climate Growth Analysis for Whitebark Pine"
+author: "Ceci Martinez"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+header-includes:
+- \renewcommand*\familydefault{\sfdefault} %% this picks a sans serif font
+- \usepackage[T1]{fontenc}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(class.source = 'number-lines', echo = TRUE)
+```
+
+## Load Packages
+
+
+```{r, message=FALSE, warning=FALSE}
+
+library(here)       # for relativizing file paths 
+library(Matrix)     # for handling sparse matrices efficiently
+library(lme4)       # for running linear models
+library(mgcv)       # for running GAMS
+library(gratia)     # for visualizing GAM models
+library(dplyr)      # for data wrangling
+library(readr)      # for loading in data
+library(ggplot2)    # for plotting
+library(ggmap)      # for plotting maps
+library(dplR)       # for wrangling tree ring data
+
+```
+
+## Load data
+
+Load the data for the analysis: tree ring growth, back-calculated size, and climate data
+```{r, message=FALSE, warning=FALSE}
+
+dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_growth_rw.csv"))
+dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size.csv"))
+dat_climate <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_data_all.csv"))
+
+```
+
+## Load Functions
+
+Source the custom R functions for overlap checking, matrix creation, and annual DBH calculations
+
+```{r, message=FALSE, warning=FALSE}
+
+source(here::here("tree-H", "R", "check_overlap.R")) 
+source(here::here("tree-H", "R", "make_X.R")) 
+source(here::here("tree-H", "R", "make_H.R")) 
+source(here::here("tree-H", "R", "make_annualizeDBH.R"))
+source(here::here("tree-H", "R_treeclim", "dcc.R"))
+
+```
+
+## Data Formatting for treeclim - try using functions from github since package was taken off CRAN
+
+```{r, message=FALSE, warning=FALSE}
+
+
+dc1_DF <- dcc(chrono = rw_crn_DF, climate = clim_df) #dcc = dendroclimatic calibration
+plot(dc1_DF)
+
+#create ring width dataframe (rwl) for dplR
+wbp_df <- data_all %>%
+  filter(SPCD == 202) %>%
+  ungroup() %>%
+  dplyr::select(TRE_CN, Year, RW)
+rw_data_DF <- spread(rw_data_DF,key = "TRE_CN",value = RW,fill = NA,drop = FALSE) #pivot_wider?
+rw_data_DF <- as.data.frame(rw_data_DF)
+years <- rw_data_DF$Year
+rw_data_DF <- rw_data_DF %>%
+  dplyr::select(-Year)
+rownames(rw_data_DF) <- years
+colnames(rw_data_DF) <- paste("SER", colnames(rw_data_DF), sep = "_")
+
+
+
+```
+
+
+## Matrix Construction for Regression
+
