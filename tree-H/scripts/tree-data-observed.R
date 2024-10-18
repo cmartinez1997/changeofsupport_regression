@@ -59,6 +59,7 @@ site_id_Z  <- Z_list$site_id
 
 # Check X and Z are aligned
 all.equal(H %*% year_id_X, year_id_Z)
+
 all.equal(site_id, site_id_Z)
 
 length(H %*% year_id_X)
@@ -74,17 +75,69 @@ data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id) %>%
   left_join(dat) 
 
 dat_fit <- dat %>% left_join(dat_bc) %>% left_join(data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id))
-  # dat_fit for bc and 
+dat_all <- dat_fit  %>%  right_join(dat_climate, by = join_by(PLOT_CN == PLOT_CN, Year == growthyear)) %>% 
+  select(-year) %>% 
+  filter(!(TRE_CN %in% c("23R48", "23T255")))
+  
+
+  
+
+  # dat_fit for bc and climate data
   # align climate to the dataframe - maybe through another join (choose vars well) join_by !!! 
-dat_fit %>% 
+dat_all %>% 
   ggplot(aes(y = log(RW + 0.001), x = Z, color = TRE_CN) ) + 
+  geom_point() + 
   geom_line() + 
-  stat_smooth()
+  stat_smooth(aes(y = log(RW + 0.001), x = Z), inherit.aes = FALSE, 
+              method = "lm", formula = y ~ x + I(x^2))+ 
+  stat_smooth(aes(y = log(RW + 0.001), x = Z), inherit.aes = FALSE, 
+              color = "black", method = "gam")
 
-mod_size <- lm(log(RW + 0.001) ~ Z + I(Z^2), data = dat_fit)
+
+
+#run model with aligned data frame
+
+mod_size <- lm(log(RW + 0.001) ~ Z + I(Z^2), data = dat_all)
 summary(mod_size) #matrices align issue - redo the matrix 
+plot(mod_size)
+check_model(mod_size)
+
+mod_climate_01 <- lm(log(RW + 0.001) ~ Z + I(Z^2) + precip, data = dat_all)
+summary(mod_climate_01) 
+
+mod_climate_02 <- lm(log(RW + 0.001) ~ Z + I(Z^2) + precip + meantemp, data = dat_all)
+summary(mod_climate_02) 
 
 
+dat_wide <- dat_all %>% pivot_wider(names_from = month, values_from = tmin:ppt) %>% 
+  select(-c("PLOT_CN", "Year", "MEASYEAR", "DIA")) 
+
+idx <- dat_wide$RW == 0
+dat_wide$RW[idx] <- NA # getting rid of outlier residual
+
+mod_climate_03 <- lmer(log(RW + 0.001) ~ Z + I(Z^2) + (1|TRE_CN), data = dat_wide)
+summary(mod_climate_03) 
+check_model(mod_climate_03)
+
+library(lme4)
+library(glmnet)
+
+x <- model.matrix(log(RW + 0.001) ~ Z + I(Z^2) + . - 1, data = dat_wide)
+y <- dat_wide %>% 
+  drop_na() %>% 
+  pull(RW)
+str(y)
+mod_net <- cv.glmnet(x,log(y + 0.001))
+summary(mod_net)
+plot(mod_net)
+coef(mod_net, s = "lambda.min")
+
+mod_net <- cv.glmnet(x, y, lambda = c(0.01, 0.1, 1, 10))
+plot(mod_net)
+summary(mod_net)
+coef(mod_net, s = "lambda.min")
+
+  
 # Create the H matrix for change of support/alignment, this happens fairly quickly
 H <- make_H(dat, fit_list) #maps cores to trees with same linked diameter
 # Convert H to a sparse matrix
@@ -110,6 +163,7 @@ ggplot(dat) +
   geom_line(aes(Year, log(RW + 0.001), group = TRE_CN)) + 
   stat_smooth(aes(Year, log(RW + 0.001)))
 
+ 
 dat %>% mutate(Z = Z) %>%
   ggplot() + 
   geom_point(aes(x = Z, log(RW + 0.001), group = TRE_CN)) 
