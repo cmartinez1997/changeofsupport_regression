@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+PRISM/*
+treeclim/*
+tree-H/R_treeclim*
+tree-H/data/raw/rwl*
