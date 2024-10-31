@@ -307,9 +307,18 @@ climwin_plot <- plotall(datasetrand = NULL,
         bestmodeldata = output[[best_mod_first_step]]$BestModelData,
         title=paste((data.frame(lapply(output$combos[best_mod_first_step,], as.character), stringsAsFactors=FALSE)), collapse = "_"))
 
+data <- output[[1]]$Dataset
+head(data)
+
+GrowthOutput <- climwin_results[[1]]$Dataset
+plotbetas(dataset = GrowthOutput)
+
+
+beta_plot <- plotbetas(climwin_results[[1]]$Dataset, arrow = FALSE, plotallenv, plotall = FALSE)
+
 ggsave("climwin.png", climwin_plot, width = 10, height = 6 )
 # Identify dates in climate that are not in response
 
 
-
+vignette("climwin", package = "climwin")
 ```

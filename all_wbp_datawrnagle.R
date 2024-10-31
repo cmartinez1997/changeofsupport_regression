@@ -138,6 +138,8 @@ climate_dat <- climate_dat %>%
   dplyr::select(PLOT_CN, year, month, tmin, tmax, ppt) %>% 
   filter(!(year == 1895 & month >= 1 & month <= 8))
 
+write_csv(climate_dat_climwin, "tree-H/data/processed/climate_dat_climwin.csv")
+
 ## making seasonal climate variables, refer to climate-growth analyses --> do this at some point, have not done yet
 ## check to make sure that the PLT_CN matches in both dfs (climate and ring width) and filter out the rows for which there isn't a match
 
