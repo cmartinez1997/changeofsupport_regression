@@ -146,9 +146,22 @@ ggplot(model_summary, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.h
     x = "Coefficients", 
     y = "Estimate (with 95% CI)") +
   theme_minimal()
+
+
 # Add random effect structure 
-mod_climate_04 <- lmer(log(RW + 0.001) ~ Z + I(Z^2) + meantemp + precip 
-                       (1 | STATECD), data = dat_wide_state)
+
+variable_ppt <- c("ppt_6", "ppt_7", "ppt_8")
+variable_tmax <-  c("tmax_5", "tmax_6", "tmax_7", "tmax_8")
+f4 <- paste("log(RW + 0.001) ~ Z + I(Z^2) + meantemp + precip", str_flatten(variable_ppt, collapse = " + "), sep = " + ")
+
+stgrmod_climate_04 <- lm(f4, data = dat_wide)
+mod_climate_05 <- lmer(paste(f4, "(1|TRE_CN)", sep = " + "), data = dat_wide)
+
+## slope effect
+mod_climate_05 <- lmer(paste(f4, "(1|TRE_CN) + (1+Z|", sep = " + "), data = dat_wide)
+
+AIC(mod_climate_04,mod_climate_05)
+check_model(mod_climate_04)
 
 x <- model.matrix(log(RW + 0.001) ~ Z + I(Z^2) + . - 1 - TRE_CN, data = dat_wide)
 y <- dat_wide %>% 
