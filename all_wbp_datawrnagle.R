@@ -138,7 +138,7 @@ climate_dat <- climate_dat %>%
   dplyr::select(PLOT_CN, year, month, tmin, tmax, ppt) %>% 
   filter(!(year == 1895 & month >= 1 & month <= 8))
 
-write_csv(climate_dat_climwin, "tree-H/data/processed/climate_dat_climwin.csv")
+write_csv(climate_dat, "tree-H/data/processed/climate_dat_climwin.csv")
 
 ## making seasonal climate variables, refer to climate-growth analyses --> do this at some point, have not done yet
 ## check to make sure that the PLT_CN matches in both dfs (climate and ring width) and filter out the rows for which there isn't a match
@@ -174,7 +174,9 @@ climate_scaled <- scaling_climate(climate_all, vars_to_scale = c("tmin", "tmax",
 # write and export as csvs --------------------------------------------------------------
 
 write_csv(wbp_rw_all, "tree-H/data/processed/wbp_all_climate_growth_rw.csv")
-write_csv(climate_scaled, "tree-H/data/processed/wbp_all_climate_data_all.csv")
+write_csv(climate_scaled, "tree-H/data/processed/wbp_all_climate_data_scaled_all.csv")
+write_csv(climate_all, "tree-H/data/processed/wbp_all_climate_data_all.csv")
+
 
 
 # okay now wrangle size data frame ----------------------------------------

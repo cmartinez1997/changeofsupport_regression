@@ -22,12 +22,14 @@ library(glmnet)
 source(here::here("tree-H", "R", "check_overlap.R")) 
 source(here::here("tree-H", "R", "make_X.R")) 
 source(here::here("tree-H", "R", "make_H.R")) 
-source(here::here("tree-H", "R", "make_annualizeDBH.R")) 
+source(here::here("tree-H", "R", "make_annualizeDBH.R"))
+source(here::here("tree-H", "R", "make_seasonalwindows.R"))
 
 
 # Load the data
 dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_all_climate_growth_rw.csv"))
 dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size_all.csv"))
+#if you want climate scaled, then load "wbp_all_climate_data_scaled_all.csv"
 dat_climate <- read_csv(here::here("tree-H", "data", "processed", "wbp_all_climate_data_all.csv"))# Check the data sources for overlap and lack of overlap
 
 missing_overlap <- check_overlap(dat, dat_climate, dat_bc)
@@ -43,6 +45,28 @@ dat_climate <- dat_climate %>%
   dplyr::select(-tmin)
 dat_bc      <- dat_bc[!missing_overlap$bc_tree_CN_missing & !missing_overlap$bc_year_missing, ]
 
+###MAKING SEASONAL CLIMATE VARIABLES#####
+
+JunJulAug_ppt          <- making_climate_windows(data = dat_climate, 
+                                              variable = "ppt", 
+                                              start_month = 6, 
+                                              end_month = 8, 
+                                              year_shift = 0)
+pJunJulAug_ppt         <- making_climate_windows(data = dat_climate, 
+                                              variable = "ppt", 
+                                              start_month = 6, 
+                                              end_month = 8, 
+                                              year_shift = -1)
+
+seasonal_clim_dat   <- left_join(JunJulAug_ppt, pJunJulAug_ppt, by = c("PLOT_CN", "year"))
+seasonal_clim_dat <- seasonal_clim_dat %>%
+  mutate(prev_current_ppt = 
+           c_68_ppt + p_68_ppt)
+
+##scaline
+
+
+
 
 # Create the size backcalculated matrix
 Z_list     <- backcalculate_DBH(dat_bc)
@@ -57,11 +81,15 @@ str(dat_bc)
 data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id) %>% 
   left_join(dat) 
 
+
 dat_fit <- dat %>% left_join(dat_bc) %>% left_join(data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id))
 # so we have to create a dataframe to account for seasonal, or time varying monthly climate variables
 dat_all <- dat_fit  %>%  right_join(dat_climate, by = join_by(PLOT_CN == PLOT_CN, Year == growthyear)) %>% 
   dplyr::select(-year) %>% 
   filter(!(TRE_CN %in% c("23R48", "23T255"))) # this gets rid of weird outliers
+
+dat_all_seas <- dat_fit %>% right_join(seasonal_clim_dat, by = join_by(PLOT_CN == PLOT_CN, Year == year))
+  
 
 # dat_fit for bc and climate data
 # align climate to the dataframe - maybe through another join (choose vars well) join_by !!! 
@@ -78,6 +106,7 @@ dat_all %>%
   theme(legend.position = "none")  # Remove the legend
 
 #run model with aligned data frame
+
 mod_size <- lm(log(RW + 0.001) ~ Z + I(Z^2), data = dat_all)
 summary(mod_size) #matrices align issue - redo the matrix 
 plot(mod_size)
@@ -135,11 +164,20 @@ mod_net <- cv.glmnet(x, y, lambda = c(0.01, 0.1, 1, 10))
 plot(mod_net)
 summary(mod_net)
 coef(mod_net, s = "lambda.min")
+coefficients <- as.data.frame(as.matrix(coef(mod_net, s = "lambda.min")))
+colnames(coefficients) <- "Coefficient"
+coefficients <- data.frame(Variable = rownames(coefficients), Coefficient = coefficients$Coefficient, row.names = NULL)
+coefficients <- coefficients[coefficients$Coefficient != 0 & !is.na(coefficients$Coefficient), ]
+coefficients %>%
+  kbl(digits = 6, format = "html", caption = "Coefficients Table") %>%
+  kable_styling("striped", full_width = F) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(2, bold = TRUE, color = ifelse(is.na(coefficients$Coefficient), "gray", "black"))
 
 
+####################### CLIMWIN model for comparison with John Tipton Model ######################################
+######################                                                      ######################################
 
-
-#####. OKAY CLIMWIN comparison with John Tipton Model.#########
 #create ring width dataframe (rwl) for dplR
 library(reshape2)
 library(dplyr)
@@ -465,7 +503,8 @@ climwin_plot <- plotall(datasetrand = NULL,
                         bestmodeldata = output[[best_mod_first_step]]$BestModelData,
                         title=paste((data.frame(lapply(output$combos[best_mod_first_step,], as.character), stringsAsFactors=FALSE)), collapse = "_"))
 
-# all data ----------------------------------------------------------------
+##################################################################
+# DO THIS FOR ALL DATA NOW--------------------------------------
 
 #data wrnagling rw data 
 rw_data <- wbp_rw_all %>%
@@ -518,7 +557,7 @@ rw_all_crn <- rw_all_crn %>%
   dplyr::select(year, everything()) %>% 
   filter(year > 1897) %>% 
   # dplyr::select(-samp.depth)  %>%
-  rename(`RWI` = `ring_width_index`) 
+  rename(`RWI` = `std`) 
 
 rw_all_crn %>%
   kable("html", row.names = FALSE, caption = "Tree Ring Width Index Data Summary") %>%
@@ -540,7 +579,7 @@ climate_dat_climwin_df <- climate_dat_climwin %>%
 # Define the response and climate data for climwin
 response <- rw_all_crn
 climate <- climate_dat_climwin_df
-reference_date <- c(30, 8) 
+reference_date <- c(30, 9) 
 
 # Define the response and climate variables for climwin
 response_var <- "RWI"  
@@ -555,7 +594,7 @@ climwin_results <- slidingwin(
   ),
   type = "absolute",
   cinterval = "month",
-  range = c(16, 0),  # Specify the range of months to include in the analysis
+  range = c(17, 0),  # Specify the range of months to include in the analysis
   stat = "mean",
   func = c("lin", "quad"),
   cdate = climate$Date,
@@ -568,14 +607,15 @@ summary(climwin_results)
 
 # Looking at best model for each climate variables
 climwin_results[[3]]$BestModel
-
 climwin_results$combos
 climwin_results$combos %>%
   kbl(caption = "ALL") %>%
   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
 
 best_mod_first_step <- which.min(climwin_results$combos$DeltaAICc)
+tmax_mod <- (climwin_results$combos$DeltaAICc)
 output <- climwin_results
+
 climwin_plot <- plotall(datasetrand = NULL,
                         dataset = output[[best_mod_first_step]]$Dataset, 
                         bestmodel = output[[best_mod_first_step]]$BestModel,
