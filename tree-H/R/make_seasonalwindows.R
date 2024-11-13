@@ -26,6 +26,59 @@ making_climate_windows <- function(data, variable, start_month, end_month, year_
 }
 
 
+library(dplyr)
 
-
+make_climwin <- function(data, variable, reference_month, months_span) {
+  # Arguments:
+  # data: The data frame containing climate data
+  # variable: The name of the climate variable to aggregate (e.g., "ppt" for precipitation)
+  # reference_month: The month (1-12) to use as the end of the aggregation period
+  # months_span: The length of the aggregation window in months
+  
+  # Ensure data is sorted by year and month
+  data <- data %>%
+    arrange(PLOT_CN, year, month)
+  
+  # Initialize a list to store results
+  results <- list()
+  
+  unique_plots <- unique(data$PLOT_CN)
+  for (plot in unique_plots) {
+    plot_data <- data %>% filter(PLOT_CN == plot)
+    unique_years <- unique(plot_data$year)
+    
+    for (current_year in unique_years) {
+      # Calculate the start month and year for the previous months_span window
+      start_month <- (reference_month - months_span + 1 + 12) %% 12
+      start_month <- ifelse(start_month == 0, 12, start_month)  # Adjust for month "0" to become "12"
+      
+      # Adjust the start year if the window spans into the previous year
+      start_year <- ifelse(reference_month - months_span + 1 <= 0, current_year - 1, current_year)
+      
+      # Filter data to include only rows within the previous months_span window up to the reference month
+      window_data <- plot_data %>%
+        filter(
+          (year > start_year | (year == start_year & month >= start_month)) &
+            (year < current_year | (year == current_year & month <= reference_month))
+        )
+      
+      # Check if we have the full months_span of data
+      if (nrow(window_data) == months_span) {
+        # Sum the variable for this window and store it with the current year, reference month, and plot
+        aggregate_sum <- sum(window_data[[variable]], na.rm = TRUE)
+        results[[length(results) + 1]] <- data.frame(
+          PLOT_CN = plot,
+          year = current_year,
+          reference_month = reference_month,
+          aggregate_sum = aggregate_sum
+        )
+      }
+    }
+  }
+  
+  # Combine all results into a single data frame
+  final_results <- bind_rows(results)
+  
+  return(final_results)
+}
 

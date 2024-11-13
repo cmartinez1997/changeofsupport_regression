@@ -25,7 +25,6 @@ source(here::here("tree-H", "R", "make_H.R"))
 source(here::here("tree-H", "R", "make_annualizeDBH.R"))
 source(here::here("tree-H", "R", "make_seasonalwindows.R"))
 
-
 # Load the data
 dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_all_climate_growth_rw.csv"))
 dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size_all.csv"))
@@ -45,25 +44,7 @@ dat_climate <- dat_climate %>%
   dplyr::select(-tmin)
 dat_bc      <- dat_bc[!missing_overlap$bc_tree_CN_missing & !missing_overlap$bc_year_missing, ]
 
-###MAKING SEASONAL CLIMATE VARIABLES#####
 
-JunJulAug_ppt          <- making_climate_windows(data = dat_climate, 
-                                              variable = "ppt", 
-                                              start_month = 6, 
-                                              end_month = 8, 
-                                              year_shift = 0)
-pJunJulAug_ppt         <- making_climate_windows(data = dat_climate, 
-                                              variable = "ppt", 
-                                              start_month = 6, 
-                                              end_month = 8, 
-                                              year_shift = -1)
-
-seasonal_clim_dat   <- left_join(JunJulAug_ppt, pJunJulAug_ppt, by = c("PLOT_CN", "year"))
-seasonal_clim_dat <- seasonal_clim_dat %>%
-  mutate(prev_current_ppt = 
-           c_68_ppt + p_68_ppt)
-
-##scaline
 
 
 
@@ -173,11 +154,14 @@ str(y)
 # plot(mod_net)
 # coef(mod_net, s = "lambda.min")
 
-mod_net <- cv.glmnet(x, y, lambda = c(0.01, 0.1, 1, 10))
+mod_ad <- glmnet(x, y)
+print(mod_ad)
+mod_net <- cv.glmnet(x, y)
+print(mod_net)
 plot(mod_net)
 summary(mod_net)
 coef(mod_net, s = "lambda.min")
-coefficients <- as.data.frame(as.matrix(coef(mod_net, s = "lambda.min")))
+coefficients <- as.data.frame(as.matrix(coef(mod_net, s = "lambda.1se")))
 colnames(coefficients) <- "Coefficient"
 coefficients <- data.frame(Variable = rownames(coefficients), Coefficient = coefficients$Coefficient, row.names = NULL)
 coefficients <- coefficients[coefficients$Coefficient != 0 & !is.na(coefficients$Coefficient), ]
@@ -278,7 +262,7 @@ climate_dat_climwin_ID <- climate_dat_climwin_ID %>%
 # Define the response and climate data for climwin
 response <- rw_crn_ID
 climate <- climate_dat_climwin_ID
-reference_date <- c(30, 9) 
+reference_date <- c(30, 11) 
 
 # Define the response and climate variables for climwin
 response_var <- "RWI"  
@@ -296,7 +280,7 @@ climwin_results <- slidingwin(
   baseline = lm(response[[response_var]] ~ 1, data = response),
   type = "absolute",
   refday = reference_date,
-  range = c(16, 0),  # Specify the range of months to include in the analysis
+  range = c(19, 0),  # Specify the range of months to include in the analysis
   stat = "mean",
   func = c("lin", "quad"),
   cmissing = FALSE)
@@ -378,7 +362,7 @@ climate_dat_climwin_MT <- climate_dat_climwin_MT %>%
 # Define the response and climate data for climwin
 response <- rw_crn_MT
 climate <- climate_dat_climwin_MT
-reference_date <- c(30, 9) 
+reference_date <- c(30, 11) 
 
 # Define the response and climate variables for climwin
 response_var <- "RWI"  
@@ -476,7 +460,7 @@ climate_dat_climwin_WY <- climate_dat_climwin_WY %>%
 # Define the response and climate data for climwin
 response <- rw_crn_WY
 climate <- climate_dat_climwin_WY
-reference_date <- c(30, 9) 
+reference_date <- c(30, 11) 
 
 # Define the response and climate variables for climwin
 response_var <- "RWI"  
@@ -592,7 +576,7 @@ climate_dat_climwin_df <- climate_dat_climwin %>%
 # Define the response and climate data for climwin
 response <- rw_all_crn
 climate <- climate_dat_climwin_df
-reference_date <- c(30, 9) 
+reference_date <- c(30, 11) 
 
 # Define the response and climate variables for climwin
 response_var <- "RWI"  
@@ -607,7 +591,7 @@ climwin_results <- slidingwin(
   ),
   type = "absolute",
   cinterval = "month",
-  range = c(17, 0),  # Specify the range of months to include in the analysis
+  range = c(19, 0),  # Specify he range of months to include in the analysis
   stat = "mean",
   func = c("lin", "quad"),
   cdate = climate$Date,
