@@ -30,6 +30,7 @@ dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size_all.csv")
 #if you want climate scaled, then load "wbp_all_climate_data_scaled_all.csv"
 dat_climate <- read_csv(here::here("tree-H", "data", "processed", "wbp_all_climate_data_all.csv"))# Check the data sources for overlap and lack of overlap
 
+# Check how the dataframes overlap 
 missing_overlap <- check_overlap(dat, dat_climate, dat_bc)
 
 # Drop the missing data # do this for backcaluation
@@ -43,6 +44,8 @@ dat_climate <- dat_climate %>%
   dplyr::select(-tmin)
 dat_bc      <- dat_bc[!missing_overlap$bc_tree_CN_missing & !missing_overlap$bc_year_missing, ]
 
+
+dat_climate$PLOT_CN <- as.character(dat_climate$PLOT_CN)
 ###MAKING SEASONAL CLIMATE VARIABLES#####
 # this is from function that only do within a single calendar year analysis
 
@@ -71,9 +74,6 @@ climate_data <- data.frame(
   ppt = rpois(36, 6)  # Example precipitation data
 )
 
-# Calculate a sum of precipitation over a 12-month window ending at reference month 12
-result <- make_climwin(climate_data, "ppt", reference_month = 12, months_span = 12)
-print(result)
 
 
 ### okay new function for larger than 12 month aggregations of climate variables
@@ -85,4 +85,9 @@ wateryear_climdat       <- make_climwin(data = dat_climate,
                                         months_span = 16)
 
 
+##okay this is just to make sure its doing what I think it is
+# yay it works!!
+
+# plot <- dat_climate %>% filter(PLOT_CN == 11806586010690) %>% 
+#   select(PLOT_CN, month, year, ppt)
 
