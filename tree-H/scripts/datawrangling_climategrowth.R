@@ -79,6 +79,9 @@ climate_dat <- climate_dat %>%
   filter(!(year == 1895 & month >= 1 & month <= 8))
 
 climate_dat$PLOT_CN <- as.character(climate_dat$PLOT_CN)
+write_csv(climate_dat, "tree-H/data/processed/climate_dat.csv"). ## use this for climwin and for seasonal climate vars
+
+
 ## making seasonal climate variables, refer to climate-growth analyses --> do this at some point, have not done yet
 
 

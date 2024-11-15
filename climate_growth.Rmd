@@ -1,0 +1,50 @@
+---
+title: 'Climate-Growth Analysis'
+author: "Cecilia Martinez"
+output:
+  pdf_document
+header-includes:
+- \renewcommand*\familydefault{\sfdefault} %% this picks a sans serif font
+- \usepackage[T1]{fontenc}
+---
+
+```{r setup, echo=T, include = F}
+knitr::opts_chunk$set(class.source = 'number-lines', cache = T,
+                      tigris_use_cache = T, warning = T)
+
+```
+
+Loading packages
+
+```{r cars}
+
+library(here)
+library(Matrix)
+library(mgcv)
+library(gratia)
+library(tidyr)
+library(climwin)
+library(lme4)
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(lme4)
+library(glmnet)
+
+
+
+```
+
+Load the functions
+
+```{r pressure, echo=FALSE}
+
+source(here::here("tree-H", "R", "check_overlap.R")) 
+source(here::here("tree-H", "R", "make_X.R")) 
+source(here::here("tree-H", "R", "make_H.R")) 
+source(here::here("tree-H", "R", "make_annualizeDBH.R"))
+source(here::here("tree-H", "R", "make_seasonalwindows.R"))
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

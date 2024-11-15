@@ -23,6 +23,8 @@ source(here::here("tree-H", "R", "make_X.R"))
 source(here::here("tree-H", "R", "make_H.R")) 
 source(here::here("tree-H", "R", "make_annualizeDBH.R"))
 source(here::here("tree-H", "R", "make_seasonalwindows.R"))
+source(here::here("tree-H", "R", "make_scaling_functions.R"))
+
 
 # Load the data
 dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_all_climate_growth_rw.csv"))
@@ -94,6 +96,7 @@ pJunJulAug_tmax         <- making_climate_windows(data = dat_climate,
                                                  end_month = 8, 
                                                  year_shift = -1)
 
+
 AprMay_tmax             <- making_climate_windows(data = dat_climate, 
                                       variable = "tmax", 
                                       start_month = 4, 
@@ -106,11 +109,64 @@ pAprMay_tmax            <- making_climate_windows(data = dat_climate,
                                                   end_month = 5, 
                                                   year_shift = -1)
 
-seasonal_tmax_dat       <- left_join(JunJulAug_tmax, pJunJulAug_tmax, by = c("PLOT_CN", "year"))
+seasonal_tmax_dat       <- JunJulAug_tmax %>% 
+                            left_join(pJunJulAug_tmax, by = c("PLOT_CN", "year")) %>% 
+                            left_join(AprMay_tmax, by = c("PLOT_CN", "year")) %>% 
+                            left_join(pAprMay_tmax, by = c("PLOT_CN", "year")) 
+  
+                           
+
+
+all_seas_dat            <- seasonal_tmax_dat %>% 
+                              left_join(dat_seasonalclim, by = c("PLOT_CN", "year")) 
+
+all_seas_dat            <- all_seas_dat %>% 
+                              rename(
+                              JunAug_tmax = c_68_tmax,
+                              pJunAug_tmax = p_68_tmax,
+                              AprMay_tmax = c_45_tmax,
+                              pAprMay_tmax = p_45_tmax,
+                              JunAug_ppt = c_68_ppt,
+                              pJunAug_ppt = p_68_ppt,
+                              pJunAug_JunAug_ppt = prevJunAug_curJunAug_ppt
+                            )
+
+
+dat_climate_norms <- dat_climate %>% select(PLOT_CN, year, meantemp, precip) %>% 
+  distinct()
+
+#now add normals to dataframe
+all_seas_dat<- all_seas_dat %>%
+  left_join(
+    dat_climate_norms,
+    by = c("PLOT_CN", "year")
+  )
+
+
+#now scale clim vars locally 
+# scaled_local <- local_scale(data =test_data, clim_norms = "MAT", clim_locals = c("temp", "precip"))
+
+seas_vars <- c("JunAug_tmax", "pJunAug_tmax", "AprMay_tmax", "pAprMay_tmax", "JunAug_ppt", "pJunAug_ppt", "pJunAug_JunAug_ppt", "prevJun_currAug_ppt")
+clim_local_scale <- local_scale(data = all_seas_dat, clim_norms = c("meantemp", "precip"), clim_locals = seas_vars)
+clim_global_scale <- global_scale(data = all_seas_dat, climate_vars = c("JunAug_tmax", "pJunAug_tmax", "AprMay_tmax", "pAprMay_tmax", "JunAug_ppt", "pJunAug_ppt", "pJunAug_JunAug_ppt", "prevJun_currAug_ppt", "precip", "meantemp"))
+
+
+
+##WRITE THIS TO CSV
+sapply(clim_local_scale, class)
+
+#need to make this not a matrix for local scale
+clim_local_scale <- clim_local_scale %>%
+  mutate(across(where(is.list), ~ sapply(., as.character))) %>%
+  mutate(across(where(is.matrix), ~ as.vector(.)))
+
+write_csv(clim_local_scale, "tree-H/data/processed/clim_local_scale.csv")
+write_csv(clim_global_scale, "tree-H/data/processed/clim_global_scale.csv")
+
 
 ##okay this is just to make sure its doing what I think it is
 # yay it works!!
 
-plot <- dat_climate %>% filter(PLOT_CN == 11806586010690) %>%
-  select(PLOT_CN, month, year, tmax)
+# plot <- dat_climate %>% filter(PLOT_CN == 11806586010690) %>%
+#   select(PLOT_CN, month, year, tmax)
 
