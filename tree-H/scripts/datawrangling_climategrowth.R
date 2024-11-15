@@ -103,7 +103,7 @@ norms <- climate_normals(climate_dat, 1900, 2000)
 as.data.frame(norms)
 
 ## join climate normals to new_climate
-zz <- climate_all %>% 
+climate_all <- climate_all %>% 
   left_join(norms, by = "PLOT_CN")
 
 # write and export as csvs --------------------------------------------------------------

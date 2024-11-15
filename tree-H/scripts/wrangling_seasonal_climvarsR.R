@@ -66,28 +66,51 @@ seasonal_clim_dat       <- seasonal_clim_dat %>%
                            c_68_ppt + p_68_ppt) 
 
 
-# Example usage with sample data
-climate_data <- data.frame(
-  PLOT_CN = rep(1, 36),
-  year = rep(2000:2002, each = 12),
-  month = rep(1:12, 3),
-  ppt = rpois(36, 6)  # Example precipitation data
-)
-
-
-
 ### okay new function for larger than 12 month aggregations of climate variables
 ## previous 16 month precipitation data for example
 
 wateryear_climdat       <- make_climwin(data = dat_climate, 
                                         variable = "ppt", 
                                         reference_month = 9, 
-                                        months_span = 16)
+                                        months_span = 16) #these are for months previous Jun through current September 
 
+
+wateryear_climdat       <- wateryear_climdat %>% 
+                           rename(prevJun_currAug_ppt = aggregate_sum)
+
+dat_seasonalclim        <- seasonal_clim_dat %>%
+                            left_join(wateryear_climdat, by = c("PLOT_CN", "year"))
+
+## FOR TMAX SEASONAL AGGREGATES
+
+JunJulAug_tmax          <- making_climate_windows(data = dat_climate, 
+                                                 variable = "tmax", 
+                                                 start_month = 6, 
+                                                 end_month = 8, 
+                                                 year_shift = 0)
+pJunJulAug_tmax         <- making_climate_windows(data = dat_climate, 
+                                                 variable = "tmax", 
+                                                 start_month = 6, 
+                                                 end_month = 8, 
+                                                 year_shift = -1)
+
+AprMay_tmax             <- making_climate_windows(data = dat_climate, 
+                                      variable = "tmax", 
+                                      start_month = 4, 
+                                      end_month = 5, 
+                                      year_shift = 0)
+
+pAprMay_tmax            <- making_climate_windows(data = dat_climate, 
+                                                  variable = "tmax", 
+                                                  start_month = 4, 
+                                                  end_month = 5, 
+                                                  year_shift = -1)
+
+seasonal_tmax_dat       <- left_join(JunJulAug_tmax, pJunJulAug_tmax, by = c("PLOT_CN", "year"))
 
 ##okay this is just to make sure its doing what I think it is
 # yay it works!!
 
-# plot <- dat_climate %>% filter(PLOT_CN == 11806586010690) %>% 
-#   select(PLOT_CN, month, year, ppt)
+plot <- dat_climate %>% filter(PLOT_CN == 11806586010690) %>%
+  select(PLOT_CN, month, year, tmax)
 

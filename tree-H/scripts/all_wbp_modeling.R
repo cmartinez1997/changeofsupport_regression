@@ -609,6 +609,7 @@ climwin_results$combos %>%
   kbl(caption = "ALL") %>%
   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
 
+
 best_mod_first_step <- which.min(climwin_results$combos$DeltaAICc)
 tmax_mod <- (climwin_results$combos$DeltaAICc)
 output <- climwin_results
