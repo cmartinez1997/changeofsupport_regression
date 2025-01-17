@@ -172,7 +172,7 @@ preds <- predict(mod_climate_RE_z)
 str(preds)
 
 all_cns <- unique(dat_all_seas$TRE_CN)
-n_plot  <- 36
+n_plot  <- 6
 
 plot_cns <- sample(all_cns, n_plot)
 
@@ -211,6 +211,38 @@ ggplot(model_summary, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.h
     x = "Coefficients", 
     y = "Estimate (with 95% CI)") +
   theme_minimal()
+
+
+terms_of_interest <- c("JunAug_tmax", "prevJun_currAug_ppt", "precip", "meantemp", "Z")
+terms_labels <- c(
+  "JunAug_tmax" = "June-Aug Tmax",
+  "prevJun_currAug_ppt" = "Previous June-Aug Precip",
+  "precip" = "MAP (spatially varying)",
+  "meantemp" = "MAT (spatially varying)",
+  "Z" = "Size Effect (Z)"
+)
+model_summary_filtered <- model_summary %>%
+  filter(term %in% names(terms_labels)) %>%
+  mutate(
+    term_label = recode(term, !!!terms_labels)  # Add new labels
+  )
+
+# Plot using the new labels
+ggplot(model_summary_filtered, aes(x = term_label, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue", size = 1, fatten = 3.5) +   # Color for the points and ranges
+  coord_flip() +  # Flip coordinates for a horizontal plot
+  geom_hline(yintercept = 0, color = "black", linetype = "dashed", size = 0.5) +  # Add a reference line at 0
+  labs(
+    x = "Coefficients", 
+    y = "Estimate (with 95% CI)"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(size = 12),  # Increase size of x-axis text
+    axis.text.y = element_text(size = 12),  # Increase size of y-axis text
+    axis.title.x = element_text(size = 14, face = "bold"),  # Increase size and bold x-axis title
+    axis.title.y = element_text(size = 14, face = "bold")   # Increase size and bold y-axis title
+  )
 
 ### OKAY comparing Mixed effects and looking at some model diagnostics
 

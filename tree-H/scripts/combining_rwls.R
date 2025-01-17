@@ -1,4 +1,4 @@
-##Concatenating individual rwl files
+##Concatenating individual rwl files into the format required for FIA tree-ring data 
 
 # loading packages --------------------------------------------------------
 
@@ -11,7 +11,7 @@ library(dplR)
 rwl_files <- list.files("tree-H/data/raw/rwl", pattern = "\\.rwl$", full.names = TRUE)
 f <- file.path(rwl_files)
 
-# code from Alex Nolin ----------------------------------------------------
+# code chunk from Alex Nolin :) ----------------------------------------------------
 
 pb <- txtProgressBar(min = 0, max = length(f), style = 3) 
 
@@ -33,7 +33,8 @@ head(APEw)
 
 melt(as.matrix(rwl_combine))
 
-# adding the as.matrix function preseves the year variable name
+# adding the as.matrix function preserves the year variable name 
+# turning data into long form instead of wide form
 rwl_long <- reshape2::melt(as.matrix(rwl_combine)) %>% 
   rename(Year = Var1, CN = Var2, RW = value)
 head(rwl_long)

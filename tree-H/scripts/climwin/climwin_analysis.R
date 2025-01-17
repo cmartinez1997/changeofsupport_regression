@@ -476,6 +476,7 @@ plotbest(dataset = output[[best_mod_first_step]]$Dataset,
 
 plotbetas(dataset = output[[best_mod_first_step]]$Dataset)
 plotbetas(dataset = output[[tmax_mod_first_step]]$Dataset)
+plotdelta(dataset = output[[tmax_mod_first_step]]$Dataset)
 
 
 ggsave("climwin.png", climwin_plot, width = 10, height = 6 )
