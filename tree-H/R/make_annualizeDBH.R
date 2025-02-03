@@ -11,7 +11,7 @@ backcalculate_DBH <- function(dat_bc, verbose = TRUE){ # this function requires 
     mutate(RW_in = RW * 0.0393701) |> 
     dplyr::group_by(TRE_CN) |>
     dplyr::arrange(desc(Year)) |>
-    dplyr::mutate(cum_dia_change = cumsum(dplyr::lag(RW_in, default = 0))) |> 
+    dplyr::mutate(cum_dia_change = cumsum(dplyr::lag(RW_in, default = 0))) |> # group by corenumber, take cumdiachange, summarize mean diameter change
     dplyr::mutate(total_rw_change = 2 * cum_dia_change) |> #look into dplyr time series tools 
     dplyr::mutate(dia_est = DIA - total_rw_change) |> # this deals with only one DBH/DRC measurement at time of coring, think about more than one DBH meas
     dplyr::mutate(dia_est = case_when(dia_est < 0 ~ 0, TRUE ~dia_est)) %>% # check for when cum_dia change <0

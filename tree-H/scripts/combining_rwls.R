@@ -1,5 +1,11 @@
 ##Concatenating individual rwl files into the format required for FIA tree-ring data 
 
+
+#=========================================================
+# This script takes individual rwl files that we generate 
+# and concatenates them and reformats them from wide to long form
+#=========================================================
+
 # loading packages --------------------------------------------------------
 
 library(dplyr)
@@ -29,7 +35,6 @@ names(d) <- gsub(".*/(.*)\\..*", "\\1", f)
 names(d)
 
 rwl_combine <- dplR::combine.rwl(d)
-head(APEw)
 
 melt(as.matrix(rwl_combine))
 

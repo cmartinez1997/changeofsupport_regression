@@ -27,10 +27,10 @@ source(here::here("tree-H", "R", "make_scaling_functions.R"))
 
 
 # Load the data
-dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_all_climate_growth_rw.csv"))
+dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_dat_rw.csv"))
 dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size_all.csv"))
 #if you want climate scaled, then load "wbp_all_climate_data_scaled_all.csv"
-dat_climate <- read_csv(here::here("tree-H", "data", "processed", "wbp_all_climate_data_all.csv"))# Check the data sources for overlap and lack of overlap
+dat_climate <- read_csv(here::here("tree-H", "data", "processed", "wbp_datclimate.csv"))# Check the data sources for overlap and lack of overlap
 
 # Check how the dataframes overlap 
 missing_overlap <- check_overlap(dat, dat_climate, dat_bc)
@@ -50,22 +50,22 @@ dat_bc      <- dat_bc[!missing_overlap$bc_tree_CN_missing & !missing_overlap$bc_
 dat_climate$PLOT_CN <- as.character(dat_climate$PLOT_CN)
 ###MAKING SEASONAL CLIMATE VARIABLES#####
 # this is from function that only do within a single calendar year analysis
-
-JunJulAug_ppt          <- making_climate_windows(data = dat_climate, 
+# updated as of 03/07/2025
+JulSep_ppt            <- making_climate_windows(data = dat_climate, 
                                                  variable = "ppt", 
-                                                 start_month = 6, 
-                                                 end_month = 8, 
+                                                 start_month = 7, 
+                                                 end_month = 9, 
                                                  year_shift = 0)
-pJunJulAug_ppt         <- making_climate_windows(data = dat_climate, 
+pJulSep_ppt         <- making_climate_windows(data = dat_climate, 
                                                  variable = "ppt", 
-                                                 start_month = 6, 
-                                                 end_month = 8, 
+                                                 start_month = 7, 
+                                                 end_month = 9, 
                                                  year_shift = -1)
 
-seasonal_clim_dat       <- left_join(JunJulAug_ppt, pJunJulAug_ppt, by = c("PLOT_CN", "year"))
+seasonal_clim_dat       <- left_join(JulSep_ppt, pJulSep_ppt, by = c("PLOT_CN", "year"))
 seasonal_clim_dat       <- seasonal_clim_dat %>%
-                           mutate(prevJunAug_curJunAug_ppt = 
-                           c_68_ppt + p_68_ppt) 
+                           mutate(prevJulSep_curJulSep_ppt = 
+                                    c_79_ppt + p_79_ppt) 
 
 
 ### okay new function for larger than 12 month aggregations of climate variables
@@ -85,14 +85,14 @@ dat_seasonalclim        <- seasonal_clim_dat %>%
 
 ## FOR TMAX SEASONAL AGGREGATES
 
-JunJulAug_tmax          <- making_climate_windows(data = dat_climate, 
+JulAug_tmax            <- making_climate_windows(data = dat_climate, 
                                                  variable = "tmax", 
-                                                 start_month = 6, 
+                                                 start_month = 7, 
                                                  end_month = 8, 
                                                  year_shift = 0)
-pJunJulAug_tmax         <- making_climate_windows(data = dat_climate, 
+pJulAug_tmax           <- making_climate_windows(data = dat_climate, 
                                                  variable = "tmax", 
-                                                 start_month = 6, 
+                                                 start_month = 7, 
                                                  end_month = 8, 
                                                  year_shift = -1)
 
@@ -109,8 +109,8 @@ pAprMay_tmax            <- making_climate_windows(data = dat_climate,
                                                   end_month = 5, 
                                                   year_shift = -1)
 
-seasonal_tmax_dat       <- JunJulAug_tmax %>% 
-                            left_join(pJunJulAug_tmax, by = c("PLOT_CN", "year")) %>% 
+seasonal_tmax_dat       <- JulAug_tmax %>% 
+                            left_join(pJulAug_tmax, by = c("PLOT_CN", "year")) %>% 
                             left_join(AprMay_tmax, by = c("PLOT_CN", "year")) %>% 
                             left_join(pAprMay_tmax, by = c("PLOT_CN", "year")) 
   
@@ -122,17 +122,17 @@ all_seas_dat            <- seasonal_tmax_dat %>%
 
 all_seas_dat            <- all_seas_dat %>% 
                               rename(
-                              JunAug_tmax = c_68_tmax,
-                              pJunAug_tmax = p_68_tmax,
+                              JulAug_tmax = c_78_tmax,
+                              pJulAug_tmax = p_78_tmax,
                               AprMay_tmax = c_45_tmax,
                               pAprMay_tmax = p_45_tmax,
-                              JunAug_ppt = c_68_ppt,
-                              pJunAug_ppt = p_68_ppt,
-                              pJunAug_JunAug_ppt = prevJunAug_curJunAug_ppt
+                              JulSep_ppt = c_79_ppt,
+                              pJulSep_ppt = p_79_ppt,
+                              pJulSep_JulSep_ppt = prevJulSep_curJulSep_ppt
                             )
 
 
-dat_climate_norms <- dat_climate %>% select(PLOT_CN, year, meantemp, precip) %>% 
+dat_climate_norms <- dat_climate %>% dplyr::select(PLOT_CN, year, meantemp, precip) %>% 
   distinct()
 
 #now add normals to dataframe
@@ -146,9 +146,9 @@ all_seas_dat<- all_seas_dat %>%
 #now scale clim vars locally 
 # scaled_local <- local_scale(data =test_data, clim_norms = "MAT", clim_locals = c("temp", "precip"))
 
-seas_vars <- c("JunAug_tmax", "pJunAug_tmax", "AprMay_tmax", "pAprMay_tmax", "JunAug_ppt", "pJunAug_ppt", "pJunAug_JunAug_ppt", "prevJun_currAug_ppt")
+seas_vars <- c("JulAug_tmax", "pJulAug_tmax", "AprMay_tmax", "pAprMay_tmax", "JulSep_ppt", "pJulSep_ppt", "pJulSep_JulSep_ppt")
 clim_local_scale <- local_scale(data = all_seas_dat, clim_norms = c("meantemp", "precip"), clim_locals = seas_vars)
-clim_global_scale <- global_scale(data = all_seas_dat, climate_vars = c("JunAug_tmax", "pJunAug_tmax", "AprMay_tmax", "pAprMay_tmax", "JunAug_ppt", "pJunAug_ppt", "pJunAug_JunAug_ppt", "prevJun_currAug_ppt", "precip", "meantemp"))
+clim_global_scale <- global_scale(data = all_seas_dat, climate_vars = c("JulAug_tmax", "pJulAug_tmax", "AprMay_tmax", "pAprMay_tmax", "JulSep_ppt", "pJulSep_ppt", "pJulSep_JulSep_ppt", "precip", "meantemp"))
 
 
 
@@ -162,7 +162,7 @@ clim_local_scale <- clim_local_scale %>%
 
 write_csv(clim_local_scale, "tree-H/data/processed/clim_local_scale.csv")
 write_csv(clim_global_scale, "tree-H/data/processed/clim_global_scale.csv")
-
+# updated as of 02/03/2025
 
 ##okay this is just to make sure its doing what I think it is
 # yay it works!!

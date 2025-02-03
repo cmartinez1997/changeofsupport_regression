@@ -16,8 +16,9 @@ library(dplyr)
 library(lme4)
 library(glmnet)
 library(stringr)
+library(performance)
 
-######################### Analysis for Whitebark Pine Climate-Growth##########################################
+######################### Analysis for Whitebark Pine Climate-Growth ##########################################
 
 # Load the functions
 source(here::here("tree-H", "R", "check_overlap.R")) 
@@ -27,24 +28,22 @@ source(here::here("tree-H", "R", "make_annualizeDBH.R"))
 source(here::here("tree-H", "R", "make_seasonalwindows.R"))
 
 # Load the data
-dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_all_climate_growth_rw.csv"))
+dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_dat_rw.csv"))
 dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size_all.csv"))
 #if you want climate scaled, then load "wbp_all_climate_data_scaled_all.csv"
 dat_climate <- read_csv(here::here("tree-H", "data", "processed", "clim_local_scale.csv"))# Check the data sources for overlap and lack of overlap
+ # remove rows with NA values
+dat_climate <- dat_climate %>% drop_na()
 
-# missing_overlap <- check_overlap
-# 
-# # Drop the missing data # do this for backcaluation
-# message("About ", round(mean((missing_overlap$tree_CN_missing) | (missing_overlap$tree_year_missing)) * 100, digits = 0), "% of tree ring data will be dropped")
-# message("About ", round(mean((missing_overlap$climate_CN_missing) | (missing_overlap$climate_year_missing)) * 100, digits = 0), "% of climate ring data will be dropped")
-# message("About ", round(mean((missing_overlap$bc_tree_CN_missing) | (missing_overlap$bc_year_missing)) * 100, digits = 0), "% of backcalculated data will be dropped")
-# 
-# dat         <- dat[!missing_overlap$tree_CN_missing & !missing_overlap$tree_year_missing, ]
-# dat_climate <- dat_climate[!missing_overlap$climate_CN_missing & !missing_overlap$climate_year_missing, ]
-# dat_climate <- dat_climate %>% 
-#   dplyr::select(-tmin)
-# dat_bc      <- dat_bc[!missing_overlap$bc_tree_CN_missing & !missing_overlap$bc_year_missing, ]
+  
+# Check how the dataframes overlap , this step needs to be revised to account for the seasonal climate variables
+# missing_overlap <- check_overlap(dat, dat_climate, dat_bc)
+# for now get rid of the misclirbated data
 
+dat <- dat %>% 
+  filter(!(TRE_CN %in% c("23R48", "23T255", "22T1755", "H151B")))
+dat_bc <- dat_bc %>% 
+  filter(!(TRE_CN %in% c("23R48", "23T255", "22T1755", "H151B")))
 
 # Create the size backcalculated matrix
 Z_list     <- backcalculate_DBH(dat_bc)
@@ -59,23 +58,17 @@ str(dat_bc)
 data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id) %>% 
   left_join(dat) 
 
-
+dat$PLOT_CN <- as.character(dat$PLOT_CN)
 dat_fit <- dat %>% left_join(dat_bc) %>% left_join(data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id)) %>% 
   rename(year = Year)
-dat_fit$PLOT_CN <- as.character(dat_fit$PLOT_CN)
 dat_climate$PLOT_CN <- as.character(dat_climate$PLOT_CN)
 
-
-# so we have to create a dataframe to account for seasonal, or time varying monthly climate variables
-# dat_all <- dat_fit  %>%  right_join(dat_climate, by = join_by(PLOT_CN == PLOT_CN, Year == year)) %>% 
-#   dplyr::select(-year) %>% 
-  # filter(!(TRE_CN %in% c("23R48", "23T255"))) # this gets rid of weird outliers
-
+# so we have to create a dataframe to account for seasonal and/or time varying monthly climate variables
 dat_all_seas <- dat_fit %>% left_join(dat_climate, by = c("PLOT_CN", "year"))
   
 #okay now remove all rows where climate data = NA.  ###THIS IS THE FINAL DATAFRAME W WILL USE FOR ANALYSIS
 dat_all_seas <- dat_all_seas %>%
-  filter(!is.na(pJunAug_tmax)) %>% 
+  filter(!is.na(pJulAug_tmax)) %>% 
   filter(!(TRE_CN %in% c("23R48", "23T255")))
 
 
@@ -106,7 +99,7 @@ check_model(mod_climate_02)
 
 # model with MAP/MAT and aggregated time varying precip 
 mod_climate_03 <- lm(log(RW + 0.001) ~ Z + I(Z^2) +  
-                     prevJun_currAug_ppt + precip + meantemp, 
+                       pJulSep_JulSep_ppt + precip + meantemp, 
                      data = dat_all_seas)
 summary(mod_climate_03) 
 check_model(mod_climate_03)
@@ -114,34 +107,113 @@ check_model(mod_climate_03)
 ############## MODEL 5 ########################
 
 # model with MAP/MAT aggregated time varying precip and previous summer tmax
-mod_climate_04 <- lm(log(RW + 0.001) ~ Z + I(Z^2) + prevJun_currAug_ppt + pJunAug_tmax + precip + meantemp, 
+mod_climate_04 <- lm(log(RW + 0.001) ~ Z + I(Z^2) + pJulSep_JulSep_ppt + pJulAug_tmax + precip + meantemp, 
      data = dat_all_seas)
 summary(mod_climate_04) 
 check_model(mod_climate_04) ###Best model with AIC
 
 
-############## MODEL 6 ######################## Alll of the vars
-mod_climate_05 <- lm(log(RW + 0.001) ~ Z + I(Z^2) + JunAug_ppt + pJunAug_ppt + pJunAug_JunAug_ppt + 
-                       JunAug_tmax + prevJun_currAug_ppt + pJunAug_tmax + AprMay_tmax + pAprMay_tmax + precip + meantemp, 
+############## MODEL 6 ######################## Alll of the vars and random effects for tree size 
+mod_climate_05 <- lm(log(RW + 0.001) ~ Z + JulAug_tmax + pJulAug_tmax + AprMay_tmax + pAprMay_tmax +
+                         JulSep_ppt + pJulSep_ppt + pJulSep_JulSep_ppt + precip + meantemp, 
                      data = dat_all_seas)
 summary(mod_climate_05) 
 check_model(mod_climate_05)
+confint(mod_climate_05, method = "Wald")
 
-#another model 
-mod_climate_06 <- lm(log(RW + 0.001) ~ Z + I(Z^2) + prevJun_currAug_ppt + pJunAug_tmax + pAprMay_tmax + precip + meantemp, 
+#another model with quadratic term on size
+mod_climate_06_sq <- lm(log(RW + 0.001) ~ Z + I(Z^2) + pJulSep_JulSep_ppt + pJulAug_tmax + pAprMay_tmax + precip + meantemp, 
+                     data = dat_all_seas)
+summary(mod_climate_06_sq) 
+
+
+mod_climate_06 <- lm(log(RW + 0.001) ~ Z + pJulSep_JulSep_ppt + pJulAug_tmax + pAprMay_tmax + precip + meantemp, 
                      data = dat_all_seas)
 summary(mod_climate_06) 
 check_model(mod_climate_06) ###Best model with AIC
 
+range(Z) # 0-33
+
+z_plot <- seq(min(Z), max(Z), length.out = 100)
+size_plot <- z_plot * mod_climate_06$coefficients[["Z"]]
+size_plot_sq <- z_plot * mod_climate_06_sq$coefficients[["Z"]] + z_plot^2 * mod_climate_06_sq$coefficients[["I(Z^2)"]]
+
+plot(size_plot ~ z_plot)
+
+plot(log(dat_all_seas$RW + 0.001) ~ dat_all_seas$Z)
+lines(size_plot~z_plot, col = "red")
+lines(size_plot_sq~z_plot, col = "blue")
 
 ############## Checking models with AIC ######################## 
-AIC(mod_climate_01, mod_climate_02, mod_climate_03, mod_climate_04, mod_climate_06)
+AIC(mod_climate_01, mod_climate_02, mod_climate_03, mod_climate_04, mod_climate_05, mod_climate_06, mod_climate_06_sq)
 
 #best model with AIC is Model 4
-model_summary <- broom::tidy(mod_climate_04, conf.int = TRUE)
-model_summary <- model_summary %>% filter(term != "(Intercept)")
+model_summary_06 <- broom::tidy(mod_climate_06, conf.int = TRUE)
+model_summary_06 <- model_summary_06 %>% filter(term != "(Intercept)")
 
-ggplot(model_summary, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+ggplot(model_summary_06, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue") +
+  coord_flip() +  # Flip coordinates for horizontal plot
+  geom_hline(yintercept = 0, color = "black", linetype = "dashed",size = 1) +  labs(
+    x = "Coefficients", 
+    y = "Estimate (with 95% CI)") +
+  theme_minimal()
+
+model_summary_06sq <- broom::tidy(mod_climate_06_sq, conf.int = TRUE)
+model_summary_06sq <- model_summary_06sq %>% filter(term != "(Intercept)")
+
+ggplot(model_summary_06sq, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue") +
+  coord_flip() +  # Flip coordinates for horizontal plot
+  geom_hline(yintercept = 0, color = "black", linetype = "dashed",size = 1) +  labs(
+    x = "Coefficients", 
+    y = "Estimate (with 95% CI)") +
+  theme_minimal()
+
+############## MODEL 6 ######################## Alll of the vars
+# Add random effect structure 
+variable_ppt <- c("JulSep_ppt", "pJulSep_ppt", "pJulSep_JulSep_ppt", "prevJun_currAug_ppt")
+variable_tmax <- c("JulAug_tmax", "pJulAug_tmax", "AprMay_tmax", "pAprMay_tmax")
+f4 <- as.formula(paste("log(RW + 0.001) ~ Z + I(Z^2) + meantemp + precip", paste(c(variable_ppt, variable_tmax), collapse = " + "), sep = " + "))
+
+
+mod_climate_RE <- lmer(
+  log(RW + 0.001) ~ Z + pJulSep_JulSep_ppt + pJulAug_tmax + pAprMay_tmax + meantemp + precip +
+    (1 + Z | TRE_CN),
+  data = dat_all_seas,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
+
+mod_climate_RE@beta
+summary(mod_climate_RE)
+
+mod_climate_R_sq <- lmer(
+  log(RW + 0.001) ~ Z + I(Z^2) + pJulSep_JulSep_ppt + pJulAug_tmax + pAprMay_tmax + meantemp + precip +
+    (1 + Z | TRE_CN),
+  data = dat_all_seas,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
+
+summary(mod_climate_R_sq)
+z_plot <- seq(min(Z), max(Z), length.out = 100)
+size_plot <- z_plot * mod_climate_RE@beta[2]
+size_plot_sq <- z_plot * mod_climate_R_sq@beta[2] + z_plot^2 * mod_climate_R_sq@beta[3]
+plot(size_plot ~ z_plot)
+
+plot(log(dat_all_seas$RW + 0.001) ~ dat_all_seas$Z)
+lines(size_plot~z_plot, col = "red")
+lines(size_plot_sq~z_plot, col = "blue")
+# mod_climate_RE_z <- lmer(log(RW + 0.001) ~  Z + (pJulSep_JulSep_ppt + 
+#                          JulAug_tmax + meantemp + precip)^2 + (1 + Z | TRE_CN), data = dat_all_seas)
+
+mod_climate_RE_int <- lmer(
+  log(RW + 0.001) ~ Z + pJulSep_JulSep_ppt + pJulAug_tmax + pAprMay_tmax + meantemp * pJulAug_tmax +
+     + (1 + Z | TRE_CN),
+  data = dat_all_seas,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
+)
+mod_sum_int <- summary(mod_climate_RE_int)
+ggplot(mod_sum_int, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
   geom_pointrange(color = "cadetblue") +
   coord_flip() +  # Flip coordinates for horizontal plot
   geom_hline(yintercept = 0, color = "black", linetype = "dashed",size = 1) +  labs(
@@ -150,29 +222,15 @@ ggplot(model_summary, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.h
   theme_minimal()
 
 
-############## MODEL 6 ######################## Alll of the vars
-# Add random effect structure 
-variable_ppt <- c("JunAug_ppt", "pJunAug_ppt", "pJunAug_JunAug_ppt", "prevJun_currAug_ppt")
-variable_tmax <- c("JunAug_tmax", "pJunAug_tmax", "AprMay_tmax", "pAprMay_tmax")
-f4 <- as.formula(paste("log(RW + 0.001) ~ Z + I(Z^2) + meantemp + precip", paste(c(variable_ppt, variable_tmax), collapse = " + "), sep = " + "))
+anova(mod_climate_RE, mod_climate_R_sq)
 
-
-mod_climate_RE <- lmer(log(RW + 0.001) ~  Z + I(Z^2) + prevJun_currAug_ppt + 
-                         JunAug_tmax + meantemp + precip + (1 + Z | TRE_CN), data = dat_all_seas)
-
-mod_climate_RE_z <- lmer(log(RW + 0.001) ~  Z + (prevJun_currAug_ppt + 
-                         JunAug_tmax + meantemp + precip)^2 + (1 + Z | TRE_CN), data = dat_all_seas)
-
-mod_climate_RE_z <- lmer(log(RW + 0.001) ~  Z + prevJun_currAug_ppt + 
-                                                   JunAug_tmax + meantemp*JunAug_tmax + precip*prevJun_currAug_ppt + (1 + Z | TRE_CN), data = dat_all_seas)
-
-anova(mod_climate_RE, mod_climate_RE_z)
+summary(mod_climate_RE_int)
 
 preds <- predict(mod_climate_RE_z)
 str(preds)
 
 all_cns <- unique(dat_all_seas$TRE_CN)
-n_plot  <- 6
+n_plot  <- 24
 
 plot_cns <- sample(all_cns, n_plot)
 
@@ -201,8 +259,7 @@ dat_all_seas %>% drop_na() %>%
   stat_smooth(aes(x = Z, y = (RW)), color = "blue", method = "lm", se = F, linewidth = 2, formula = y~ x + I(x^2)) + 
   theme_classic() + theme(legend.position = "none") + facet_wrap(~TRE_CN)
 
-model_summary <- broom::tidy(mod_climate_RE_z, conf.int = TRUE)
-model_summary <- model_summary %>% filter(term != "(Intercept)")
+model_summary <- broom::tidy(mod_sum_int, conf.int = TRUE)
 
 ggplot(model_summary, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
   geom_pointrange(color = "cadetblue") +
@@ -213,19 +270,29 @@ ggplot(model_summary, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.h
   theme_minimal()
 
 
-terms_of_interest <- c("JunAug_tmax", "prevJun_currAug_ppt", "precip", "meantemp", "Z")
+# Define the terms of interest including main effects and interactions
+terms_of_interest <- c("Z", 
+                       "pJulSep_JulSep_ppt", 
+                       "JulAug_tmax", 
+                       "meantemp", 
+                       "precip", 
+                       "meantemp:JulAug_tmax", 
+                       "precip:pJulSep_JulSep_ppt")
+
+# Create a named vector for custom labels
 terms_labels <- c(
-  "JunAug_tmax" = "June-Aug Tmax",
-  "prevJun_currAug_ppt" = "Previous June-Aug Precip",
-  "precip" = "MAP (spatially varying)",
+  "Z" = "Size Effect (Z)",
+  "pJulSep_JulSep_ppt" = "Prev Jul-Sep Precip",
+  "JulAug_tmax" = "Jul-Aug Tmax",
   "meantemp" = "MAT (spatially varying)",
-  "Z" = "Size Effect (Z)"
+  "precip" = "MAP (spatially varying)",
+  "meantemp:JulAug_tmax" = "MAT x Jul-Aug Tmax",
+  "precip:pJulSep_JulSep_ppt" = "MAP x Prev Jul-Sep Precip"
 )
+
 model_summary_filtered <- model_summary %>%
-  filter(term %in% names(terms_labels)) %>%
-  mutate(
-    term_label = recode(term, !!!terms_labels)  # Add new labels
-  )
+  filter(term %in% terms_of_interest) %>%
+  mutate(term_label = recode(term, !!!terms_labels))
 
 # Plot using the new labels
 ggplot(model_summary_filtered, aes(x = term_label, y = estimate, ymin = conf.low, ymax = conf.high)) +
@@ -237,24 +304,19 @@ ggplot(model_summary_filtered, aes(x = term_label, y = estimate, ymin = conf.low
     y = "Estimate (with 95% CI)"
   ) +
   theme_bw() +
-  theme(
-    axis.text.x = element_text(size = 12),  # Increase size of x-axis text
-    axis.text.y = element_text(size = 12),  # Increase size of y-axis text
-    axis.title.x = element_text(size = 14, face = "bold"),  # Increase size and bold x-axis title
-    axis.title.y = element_text(size = 14, face = "bold")   # Increase size and bold y-axis title
-  )
+  theme()
 
 ### OKAY comparing Mixed effects and looking at some model diagnostics
 
 par(mfrow = c(1, 2))
-plot(fitted(mod_climate_RE), resid(mod_climate_RE), main = "Mixed Effects")
+plot(fitted(mod_climate_RE_z), resid(mod_climate_RE_z), main = "Mixed Effects")
 plot(fitted(mod_climate_04), resid(mod_climate_04), main = "Fixed Effects")
 
 par(mfrow = c(1, 2))
 
 # QQ plot for mixed-effects model residuals
-qqnorm(resid(mod_climate_RE), main = "QQ Plot: Mixed Effects")
-qqline(resid(mod_climate_RE), col = "red")
+qqnorm(resid(mod_climate_RE_z), main = "QQ Plot: Mixed Effects")
+qqline(resid(mod_climate_RE_z), col = "red")
 
 # QQ plot for fixed-effects model residuals
 qqnorm(resid(mod_climate_04), main = "QQ Plot: Fixed Effects")

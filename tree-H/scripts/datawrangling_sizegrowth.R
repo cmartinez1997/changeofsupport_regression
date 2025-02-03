@@ -7,31 +7,42 @@ library(here)
 
 # load in wbp tree ring data and associated metadata ----------------------
 
-wbp_meta <- read_csv(here::here("tree-H", "data", "raw", "wbp_cores_2020-2023.csv")) 
-wbp_meta <- wbp_meta %>% 
-  rename(TRE_CN = CN)
-wbp_rw <- read_csv(here::here("tree-H", "data", "raw", "wbp_new_rwl.csv"))
-wbp_rw <- wbp_rw %>% 
-  rename(TRE_CN = CN)
+wbp_meta <- read_csv(here::here("tree-H", "data", "processed", "wbp_meta_size.csv")) 
+wbp_rw <- read_csv(here::here("tree-H", "data", "processed", "wbp_dat_rw.csv"))
 
 # load in function --------------------------------------------------------
 
 source(here::here("tree-H", "R", "make_annualizeDBH.R"))
 
-class(wbp_meta$CRUISE_DATE) 
-range(wbp_meta$CRUISE_DATE) # so these are in diferent formats, range from 9/9 to 10/17 in 2023
+# class(wbp_meta$CRUISE_DATE) 
+# range(wbp_meta$CRUISE_DATE) # so these are in diferent formats, range from 9/9 to 10/17 in 2023
 
 # wrangle data ------------------------------------------------------------
 
 wbp_size_dat <- wbp_rw <- left_join(wbp_rw, wbp_meta)
-wbp_size_dat <- wbp_size_dat %>% select(TRE_CN, PLOT_CN, MEASYEAR, Year, RW, DIA)
+wbp_size_dat <- wbp_size_dat %>% dplyr::select(TRE_CN, PLOT_CN, MEASYEAR, Year, RW, DIA)
 wbp_size_dat$PLOT_CN <- as.character(wbp_size_dat$PLOT_CN)
 
-# testing the function
-wbp_test <- backcalculate_DBH(wbp_size_dat)
+# run the function
+# wbp_test <- backcalculate_DBH(wbp_size_dat)
+# 
+# 
+# library(tibble)
+# wbp_test_df <- as_tibble(wbp_test)
+# write_csv(wbp_test_df, "tree-H/data/processed/wbp_size_all.csv")
+# 
+# # write to csv ------------------------------------------------------------
+# 
+# write_csv(wbp_test, "tree-H/data/processed/wbp_size_all.csv")
+
+wbp_size_dat <- wbp_rw <- left_join(wbp_rw, wbp_meta)
+wbp_size_dat <- wbp_size_dat %>% dplyr::select(TRE_CN, PLOT_CN, MEASYEAR, Year, RW, DIA)
+wbp_size_dat$PLOT_CN <- as.character(wbp_size_dat$PLOT_CN)
+
+library(tibble)
+wbp_test_df <- as_tibble(wbp_size_dat)
+write_csv(wbp_size_dat, "tree-H/data/processed/wbp_size_all.csv")
+# write_csv(wbp_test, "tree-H/data/processed/wbp_size_all.csv")
 
 
-# write to csv ------------------------------------------------------------
-
-write_csv(wbp_size_dat, "tree-H/data/processed/wbp_size.csv")
-
+# last updated on 02/03/2025

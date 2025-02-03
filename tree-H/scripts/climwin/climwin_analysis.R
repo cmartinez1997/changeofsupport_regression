@@ -346,6 +346,8 @@ climwin_plot <- plotall(datasetrand = NULL,
 
 ##################################################################
 # DO THIS FOR ALL DATA NOW--------------------------------------
+wbp_rw_all <- read_csv("tree-H/data/processed/wbp_dat_rw.csv")
+climate_all <- read_csv("tree-H/data/processed/wbp_datclimate.csv")
 
 #data wrnagling rw data 
 rw_data <- wbp_rw_all %>%
@@ -456,7 +458,7 @@ climwin_results$combos %>%
 
 
 best_mod_first_step <- which.min(climwin_results$combos$DeltaAICc)
-tmax_mod_first_step <- which(climwin_results$combos$DeltaAICc == -11.75)
+tmax_mod_first_step <- which(climwin_results$combos$DeltaAICc == -9.06)
 
 output <- climwin_results
 

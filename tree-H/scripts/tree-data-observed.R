@@ -16,38 +16,38 @@ library(dplyr)
 
 
 # Load the data
-dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_growth_rw.csv"))
-dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size.csv"))
-dat_climate <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_data_all.csv"))
+dat <- read_csv(here::here("tree-H", "data", "processed", "wbp_dat_rw.csv"))
+dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size_all.csv"))
+dat_climate <- read_csv(here::here("tree-H", "data", "processed", "clim_local_scale.csv"))
 
-# Load the functions
-source(here::here("tree-H", "R", "check_overlap.R")) 
-source(here::here("tree-H", "R", "make_X.R")) 
-source(here::here("tree-H", "R", "make_H.R")) 
-source(here::here("tree-H", "R", "make_annualizeDBH.R")) 
-
-# Check the data sources for overlap and lack of overlap
-missing_overlap <- check_overlap(dat, dat_climate, dat_bc)
+# # Load the functions
+# source(here::here("tree-H", "R", "check_overlap.R")) 
+# source(here::here("tree-H", "R", "make_X.R")) 
+# source(here::here("tree-H", "R", "make_H.R")) 
+# source(here::here("tree-H", "R", "make_annualizeDBH.R")) 
+# 
+# # Check the data sources for overlap and lack of overlap
+# missing_overlap <- check_overlap(dat, dat_climate, dat_bc)
 
 # Drop the missing data # do this for backcaluation
-message("About ", round(mean((missing_overlap$tree_CN_missing) | (missing_overlap$tree_year_missing)) * 100, digits = 0), "% of tree ring data will be dropped")
-
-message("About ", round(mean((missing_overlap$climate_CN_missing) | (missing_overlap$climate_year_missing)) * 100, digits = 0), "% of climate ring data will be dropped")
-message("About ", round(mean((missing_overlap$bc_tree_CN_missing) | (missing_overlap$bc_year_missing)) * 100, digits = 0), "% of backcalculated data will be dropped")
-
-dat         <- dat[!missing_overlap$tree_CN_missing & !missing_overlap$tree_year_missing, ]
-dat_climate <- dat_climate[!missing_overlap$climate_CN_missing & !missing_overlap$climate_year_missing, ]
-dat_bc      <- dat_bc[!missing_overlap$bc_tree_CN_missing & !missing_overlap$bc_year_missing, ]
+# message("About ", round(mean((missing_overlap$tree_CN_missing) | (missing_overlap$tree_year_missing)) * 100, digits = 0), "% of tree ring data will be dropped")
+# 
+# message("About ", round(mean((missing_overlap$climate_CN_missing) | (missing_overlap$climate_year_missing)) * 100, digits = 0), "% of climate ring data will be dropped")
+# message("About ", round(mean((missing_overlap$bc_tree_CN_missing) | (missing_overlap$bc_year_missing)) * 100, digits = 0), "% of backcalculated data will be dropped")
+# 
+# dat         <- dat[!missing_overlap$tree_CN_missing & !missing_overlap$tree_year_missing, ]
+# dat_climate <- dat_climate[!missing_overlap$climate_CN_missing & !missing_overlap$climate_year_missing, ]
+# dat_bc      <- dat_bc[!missing_overlap$bc_tree_CN_missing & !missing_overlap$bc_year_missing, ]
 
 
 # Create the design matrix (NOTE: all RW increments are linear combinations of current year climate variables)
 # NOTE: This is currently slow but could be made faster
 # NOTE: It might make sense to center and scale these here, not currently implemented 
-fit_list   <- make_X(dat_climate)
-X          <- fit_list$X
-# rows are plots x time and columns are the environmental covariates
-year_id_X  <- fit_list$year_id
-site_id    <- fit_list$site_id
+# fit_list   <- make_X(dat_climate)
+# X          <- fit_list$X
+# # rows are plots x time and columns are the environmental covariates
+# year_id_X  <- fit_list$year_id
+# site_id    <- fit_list$site_id
 
 # Create the size backcalculated matrix
 Z_list     <- backcalculate_DBH(dat_bc)
@@ -58,10 +58,10 @@ tree_id    <- Z_list$tree_id
 site_id_Z  <- Z_list$site_id
 
 # Check X and Z are aligned
-all.equal(H %*% year_id_X, year_id_Z)
-
-all.equal(site_id, site_id_Z)
-
+# all.equal(H %*% year_id_X, year_id_Z)
+# 
+# all.equal(site_id, site_id_Z)
+# 
 length(H %*% year_id_X)
 all.equal(as.vector(H %*% year_id_X), year_id_Z)
 plot(as.vector(H %*% year_id_X), year_id_Z) # this should be a one to one line
@@ -71,13 +71,12 @@ plot(as.vector(H %*% site_id), site_id_Z) # this should be a one to one line
 
 str(dat)
 str(dat_bc)
-data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id) %>% 
-  left_join(dat) 
+data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id) %>%
+  left_join(dat)
 
 dat_fit <- dat %>% left_join(dat_bc) %>% left_join(data.frame(Z = Z, Year = year_id_Z, TRE_CN = tree_id))
-dat_all <- dat_fit  %>%  right_join(dat_climate, by = join_by(PLOT_CN == PLOT_CN, Year == growthyear)) %>% 
-  select(-year) %>% 
-  filter(!(TRE_CN %in% c("23R48", "23T255")))
+dat_all <- dat_fit  %>%  right_join(dat_climate, by = join_by(PLOT_CN == PLOT_CN, Year == year)) %>%
+  filter(!(TRE_CN %in% c("23R48", "23T255", "H151B")))
   
 
   
@@ -85,17 +84,23 @@ dat_all <- dat_fit  %>%  right_join(dat_climate, by = join_by(PLOT_CN == PLOT_CN
   # dat_fit for bc and climate data
   # align climate to the dataframe - maybe through another join (choose vars well) join_by !!! 
 dat_all %>% 
-  ggplot(aes(y = log(RW + 0.001), x = Z, color = TRE_CN) ) + 
+  ggplot(aes(y = log(RW + 0.001), x = Z, color = TRE_CN)) + 
   geom_point() + 
   geom_line() + 
   stat_smooth(aes(y = log(RW + 0.001), x = Z), inherit.aes = FALSE, 
-              method = "lm", formula = y ~ x + I(x^2))+ 
+              method = "lm", formula = y ~ x + I(x^2)) + 
   stat_smooth(aes(y = log(RW + 0.001), x = Z), inherit.aes = FALSE, 
               color = "black", method = "gam") +
-  theme_bw()
+  theme_bw() +
+  theme(legend.position = "none")
 
+outlier_rw <-  dat_all %>%
+  filter(log(RW + 0.001) > 2.5) %>%
+  dplyr::select(TRE_CN, RW, Z)  # 22T1755 outlier
 
-
+outlier_z <- dat_all %>%
+  filter(Z > 40)
+  
 #run model with aligned data frame
 
 mod_size <- lm(log(RW + 0.001) ~ Z + I(Z^2), data = dat_all)
