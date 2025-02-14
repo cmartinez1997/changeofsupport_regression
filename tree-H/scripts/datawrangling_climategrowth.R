@@ -6,8 +6,9 @@
 
 # load packages -----------------------------------------------------------
 
-library(tidyverse) # for data wrangling
 library(here)
+library(readr)
+library(tidyr)
 library(dplyr)
 
 #=========================================================
@@ -15,38 +16,32 @@ library(dplyr)
 # These data include Kichas and FIA data so far 
 #=========================================================
 
-###### load in wbp tree ring data and associated metadata for FIA CORES new ###### 
 
-# wbp_meta <- read_csv(here::here("tree-H", "data", "raw", "wbp_cores_2020-2023.csv")) 
-# wbp_meta <- wbp_meta %>% 
-#   rename(TRE_CN = CN)
-# wbp_rw <- read_csv(here::here("tree-H", "data", "raw", "wbp_new_rwl.csv"))
-# wbp_rw <- wbp_rw %>% 
-#   rename(TRE_CN = CN)
+# load in wbp tree ring data and associated metadata for FIA CORES new -------------------------------------------------------------------------
 
-wbp_meta_23 <- read_csv(here::here("tree-H", "data", "raw", "wbp_cores_2020-2023.csv")) 
-wbp_meta_23 <- wbp_meta_23 %>% 
+wbp_meta_new <- read_csv(here::here("tree-H", "data", "raw", "wbp_cores_2020-2023.csv")) 
+wbp_meta_new <- wbp_meta_new %>% 
   rename(TRE_CN = CN) %>% 
   rename(LAT = LAT_FUZZED) %>% 
   rename(LON = LON_FUZZED) %>% 
   rename(ELEV = ELEV_FUZZED) 
 
-wbp_meta_23$PLOT_CN <- as.character(wbp_meta_23$PLOT_CN)
+wbp_meta_new$PLOT_CN <- as.character(wbp_meta_new$PLOT_CN)
 
-wbp_rw_23 <- read_csv(here::here("tree-H", "data", "raw", "wbp_new_rwl.csv"))
-wbp_rw_23 <- wbp_rw_23 %>% 
+wbp_rw_new <- read_csv(here::here("tree-H", "data", "raw", "wbp_new_rwl.csv"))
+wbp_rw_new <- wbp_rw_new %>% 
   rename(TRE_CN = CN)
 
-length(unique(wbp_rw_23$TRE_CN))
+length(unique(wbp_meta_new$TRE_CN)) #71 trees so far
 
 # need to add tre and plot CN (unique tree and plot level identifiers) to the rw dataframe
 # no TRE_CN 
-wbp_rw_23 <- left_join(wbp_rw_23, wbp_meta_23)
-wbp_rw_23 <- wbp_rw_23 %>% dplyr::select(TRE_CN, PLOT_CN, Year, RW)
+wbp_rw_new <- left_join(wbp_rw_new, wbp_meta_new)
+wbp_rw_new <- wbp_rw_new %>% dplyr::select(TRE_CN, PLOT_CN, Year, RW)
 
-wbp_meta_23_filtered <- semi_join(wbp_meta_23, wbp_rw_23, by = "TRE_CN")
+wbp_meta_new_filt <- semi_join(wbp_meta_new, wbp_rw_new, by = "TRE_CN")
 
-###### load in wbp tree ring data and associated metadata for FIA CORES old ###### 
+# load in wbp tree ring data and associated metadata for FIA CORES old -------------------------------------------------------------------------
 
 wbp_meta_18 <- read_csv(here::here("tree-H", "data", "raw", "wbp_meta_2018.csv")) %>% 
   dplyr::select(-TRE_CN) %>% 
@@ -60,7 +55,6 @@ wbp_rw_18 <- wbp_rw_18 %>%
   rename(TRE_CN = CN) %>% 
   dplyr::select(-SPCD)
 wbp_rw_18$TRE_CN <- as.character(wbp_rw_18$TRE_CN)
-
 
 # now filter out all the data that's been verified!
 # only keep trees where verified = y
@@ -78,13 +72,19 @@ wbp_rw_18 <- wbp_rw_18 %>% dplyr::select(TRE_CN, PLOT_CN, Year, RW)
 # combine FIA dataframes --------------------------------------------------
 
 # ring width df 
-wbp_rw_all <- bind_rows(wbp_rw_23, wbp_rw_18)
-wbp_meta_all <- bind_rows(wbp_meta_23_filtered, wbp_meta_18)
+wbp_rw_all <- bind_rows(wbp_rw_new, wbp_rw_18)
+wbp_meta_all <- bind_rows(wbp_meta_new_filt, wbp_meta_18) #113 total rows
+
+# make a new column for where the data set comes from so we can pottentially test
+# that in our models
+wbp_rw_all <- wbp_rw_all %>% 
+  mutate(dataset = "FIA")
+wbp_meta_all <- wbp_meta_all %>% 
+  mutate(dataset = "FIA")
 
 #okay make meta df for size backcalculation
 wbp_meta_size <- wbp_meta_all %>% 
-  dplyr::select(TRE_CN, PLOT_CN, MEASYEAR, DIA)
-
+  dplyr::select(TRE_CN, PLOT_CN, MEASYEAR, DIA, dataset)
 
 ###### load in wbp tree ring data and associated metadata for Nick Kichas data ###### 
 
@@ -96,11 +96,12 @@ kichas_meta <- kichas_meta %>%
 # renaming CoreID 
 kichas_meta <- kichas_meta %>% 
   rename(TRE_CN = ID) %>% 
-  rename(PLOT_CN = Plot) 
+  rename(PLOT_CN = Plot) %>% 
+  mutate(dataset = "Kichas")
 
 # subsetting kichas metadataset
 kichas_meta_sub <- kichas_meta %>% 
-  dplyr::select(TRE_CN, PLOT_CN)
+  dplyr::select(TRE_CN, PLOT_CN, dataset) 
 
 kichas_meta_size <- kichas_meta %>%
   rename(
@@ -109,7 +110,7 @@ kichas_meta_size <- kichas_meta %>%
   )
 
 kichas_meta_size <- kichas_meta_size %>%
-  dplyr::select(TRE_CN, PLOT_CN, MEASYEAR, DIA)
+  dplyr::select(TRE_CN, PLOT_CN, MEASYEAR, DIA, dataset)
 
 
 ##OKAY NOW BIND SIZE META DF FOR BC
@@ -174,14 +175,13 @@ kichas_rw <- kichas_rw %>%
 #=========================================================
 
 # need to add tre and plot CN (unique tree and plot level identifiers) to the rw dataframe
-wbp_rw_all <- wbp_rw_all %>% dplyr::select(TRE_CN, PLOT_CN, Year, RW)
+wbp_rw_all <- wbp_rw_all %>% dplyr::select(TRE_CN, PLOT_CN, Year, RW, dataset)
 wbp_rw_all$PLOT_CN <- as.character(wbp_rw_all$PLOT_CN)
 
 #now add the kichas data to the dataframe
 # so now this is a dataframe that looks like TRE_CN, PLOT_CN, Year, RW with all of the data so far
 wbp_rw_all <- bind_rows(wbp_rw_all, kichas_rw)
-length(unique(wbp_rw_all$TRE_CN)) #209 unique tree numbers
-
+length(unique(wbp_rw_all$TRE_CN)) #219 unique tree numbers
 
 #write final csv
 write_csv(wbp_meta_all, "tree-H/data/processed/wbp_meta_all.csv")

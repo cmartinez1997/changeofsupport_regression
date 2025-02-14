@@ -1,16 +1,19 @@
+##Ceci Martinez
+##September 4 2024
 ##Concatenating individual rwl files into the format required for FIA tree-ring data 
 
 
 #=========================================================
-# This script takes individual rwl files that we generate 
-# and concatenates them and reformats them from wide to long form
+# This script takes individual rwl files that we generate from CooRecorder/CDendro
+# concatenates them and reformats them from wide to long form
+# consistent with the format that USFS RMRS wants them in
 #=========================================================
 
 # loading packages --------------------------------------------------------
 
-library(dplyr)
-library(reshape2)
-library(dplR)
+library(dplyr) #for data wrangling
+library(reshape2) #for reformatting data set
+library(dplR) #for tree ring work
 
 # load files --------------------------------------------------------------
 
@@ -21,6 +24,7 @@ f <- file.path(rwl_files)
 
 pb <- txtProgressBar(min = 0, max = length(f), style = 3) 
 
+
 d <- lapply(seq_along(f), function(i) {
   require(dplR)
   result <- subset(read.rwl(f[i]))
@@ -28,7 +32,7 @@ d <- lapply(seq_along(f), function(i) {
   return(result)
 })
 
-close(pb) 
+close(pb)
 
 # element in list have names that correspond to file path names
 names(d) <- gsub(".*/(.*)\\..*", "\\1", f)
@@ -39,7 +43,7 @@ rwl_combine <- dplR::combine.rwl(d)
 melt(as.matrix(rwl_combine))
 
 # adding the as.matrix function preserves the year variable name 
-# turning data into long form instead of wide form
+# turning data into long form 
 rwl_long <- reshape2::melt(as.matrix(rwl_combine)) %>% 
   rename(Year = Var1, CN = Var2, RW = value)
 head(rwl_long)
@@ -49,7 +53,9 @@ rwl_long <- rwl_long %>%
   drop_na(RW)
 
 # write to csv ------------------------------------------------------------
-
+# this was most recently updated Feb 13 2025 
 output_file <- file.path("tree-H/data/raw", "wbp_new_rwl.csv")
 write.csv(rwl_long, output_file, row.names = FALSE)
+
+
 

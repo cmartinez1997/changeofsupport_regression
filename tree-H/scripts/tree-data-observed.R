@@ -84,22 +84,25 @@ dat_all <- dat_fit  %>%  right_join(dat_climate, by = join_by(PLOT_CN == PLOT_CN
   # dat_fit for bc and climate data
   # align climate to the dataframe - maybe through another join (choose vars well) join_by !!! 
 dat_all %>% 
-  ggplot(aes(y = log(RW + 0.001), x = Z, color = TRE_CN)) + 
+  ggplot(aes(y = log(RW + 0.001), x = Year, color = TRE_CN)) + 
   geom_point() + 
   geom_line() + 
-  stat_smooth(aes(y = log(RW + 0.001), x = Z), inherit.aes = FALSE, 
-              method = "lm", formula = y ~ x + I(x^2)) + 
-  stat_smooth(aes(y = log(RW + 0.001), x = Z), inherit.aes = FALSE, 
+  stat_smooth(aes(y = log(RW + 0.001), x = Z), inherit.aes = FALSE,
+              method = "lm", formula = y ~ x + I(x^2)) +
+  stat_smooth(aes(y = log(RW + 0.001), x = Z), inherit.aes = FALSE,
               color = "black", method = "gam") +
   theme_bw() +
   theme(legend.position = "none")
 
 outlier_rw <-  dat_all %>%
   filter(log(RW + 0.001) > 2.5) %>%
-  dplyr::select(TRE_CN, RW, Z)  # 22T1755 outlier
+  dplyr::select(TRE_CN, RW, Z, Year)  # 22T1755 outlier
 
 outlier_z <- dat_all %>%
   filter(Z > 40)
+
+outlier_year <- dat_all %>%
+  filter(Year < 1000)
   
 #run model with aligned data frame
 

@@ -1,0 +1,20 @@
+---
+title: 'Mapping wpb MAT and MAP'
+author: "Cecilia Martinez"
+format: 
+  pdf: 
+    toc: true
+    number-sections: true
+    colorlinks: true
+
+  
+---
+
+```{r}
+#| label: load packages
+#| include: false
+
+library(prism)
+
+`````````
+
