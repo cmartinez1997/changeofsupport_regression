@@ -16,7 +16,7 @@ knitr::opts_chunk$set(class.source = 'number-lines', echo = TRUE)
 
 ## Load Packages
 
-```{r, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE, include = F}
 
 library(here)       # for relativizing file paths 
 library(Matrix)     # for handling matrices 
@@ -26,80 +26,344 @@ library(gratia)     # for visualizing GAM models with ggplot functionality
 library(readr)      # for loading in data
 library(ggplot2)    # for plotting 
 library(ggmap)      # for plotting maps
-library(dplR)       # for wrangling tree ring data
+library(dplR)       # for tree ring data specific analaysis
 library(tidyr)      # for data wrangling 
 library(dplyr)      # for data wrangling 
-
+library(performance)
+library(broom)
 
 ```
 
-## Load Functions
+## TO DO LIST
 
-Source R functions 
+- get kichas data in the model and see how results change
+- 
+
+
+
+
+## Load Data
 
 ```{r, message=FALSE, warning=FALSE}
 
-source(here::here("tree-H", "R", "check_overlap.R")) 
-source(here::here("tree-H", "R", "make_X.R")) 
-source(here::here("tree-H", "R", "make_H.R")) 
-source(here::here("tree-H", "R", "make_annualizeDBH.R"))
-source(here::here("tree-H", "R_treeclim", "dcc.R"))
+dat_all <- read_csv(here::here("tree-H", "data", "processed", "final_df.csv"))
+
+unique(as.factor(dat_all$dataset))
+
+
 
 ```
 
-## Wrangle data 
+
+## Model Building
+
+### fixed effects models
+```{r, message=FALSE, warning=FALSE}
+
+# model with MAP/MAT aggregated time varying precip and previous summer tmax
+mod_climate_01 <- lm(log(RW + 0.001) ~ Z + I(Z^2) + pJulSep_JulSep_ppt + pJulAug_tmax + precip + meantemp, 
+     data = dat_all)
+summary(mod_climate_01) 
+check_model(mod_climate_01) ###Best model with AIC
+
+mod_climate_01_sq <- lm(log(RW + 0.001) ~ Z + pJulSep_JulSep_ppt + pJulAug_tmax + precip + meantemp, 
+     data = dat_all)
+summary(mod_climate_01_sq) 
+check_model(mod_climate_01_sq) ###Best model with AIC
+
+# all model terms, no quadratic for size
+mod_climate_02 <- lm(log(RW + 0.001) ~ Z + JulAug_tmax + pJulAug_tmax + AprMay_tmax + pAprMay_tmax +
+                         JulSep_ppt + pJulSep_ppt + pJulSep_JulSep_ppt + precip + meantemp, 
+                     data = dat_all)
+summary(mod_climate_02)
+check_model(mod_climate_02)
+confint(mod_climate_02, method = "Wald")
+
+mod_climate_02_sq <- lm(log(RW + 0.001) ~ Z + I(Z^2) + JulAug_tmax + pJulAug_tmax + AprMay_tmax + pAprMay_tmax +
+                         JulSep_ppt + pJulSep_ppt + pJulSep_JulSep_ppt + precip + meantemp, 
+                     data = dat_all)
+summary(mod_climate_02_sq)
+check_model(mod_climate_02_sq)
+confint(mod_climate_02_sq, method = "Wald")
+
+#only quadratic term 
+mod_climate_03_sq <- lm(log(RW + 0.001) ~ Z + I(Z^2) + pJulSep_JulSep_ppt + pJulAug_tmax + pAprMay_tmax + precip + meantemp, 
+                     data = dat_all)
+summary(mod_climate_03_sq) 
+
+#only linear term for size
+mod_climate_03 <- lm(log(RW + 0.001) ~ Z + pJulSep_JulSep_ppt + pJulAug_tmax + pAprMay_tmax + precip + meantemp, 
+                     data = dat_all)
+summary(mod_climate_03) 
+check_model(mod_climate_03) ###Best model with AIC
+```
+### checking, and plotting fixed effects models 
+```{r}
+############## Checking models with AIC ######################## 
+AIC(mod_climate_01, mod_climate_01_sq, mod_climate_02, mod_climate_02_sq, mod_climate_03, mod_climate_03_sq)
+ #model 2sq has lowest AIC
+
+#best model with AIC is Model 4
+model_summary_02_sq <- tidy(mod_climate_02_sq, conf.int = TRUE) %>% 
+  filter(term != "(Intercept)")
+
+ggplot(model_summary_02_sq, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue") +
+  coord_flip() +  # Flip coordinates for a horizontal plot
+  geom_hline(yintercept = 0, color = "black", linetype = "dashed", size = 1) +
+  labs(x = "Coefficients", y = "Estimate (with 95% CI)") +
+  theme_minimal()
+
+```
+
+### mixed effects models
+
+```{r, message=FALSE, warning=FALSE}
+
+
+variable_ppt <- c("JulSep_ppt", "pJulSep_ppt", "pJulSep_JulSep_ppt", "prevJun_currAug_ppt")
+variable_tmax <- c("JulAug_tmax", "pJulAug_tmax", "AprMay_tmax", "pAprMay_tmax")
+f4 <- as.formula(paste("log(RW + 0.001) ~ Z + I(Z^2) + meantemp + precip", paste(c(variable_ppt, variable_tmax), collapse = " + "), sep = " + "))
+
+# terms with only linear size
+mod_climate_RE <- lmer(
+  log(RW + 0.001) ~ Z  + pJulAug_tmax + pAprMay_tmax +
+                           pJulSep_JulSep_ppt + precip + meantemp + 
+    (1 + Z | TRE_CN),
+  data = dat_all,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
+
+mod_climate_RE@beta
+summary(mod_climate_RE)
+
+# terms with quadratic and lienar size
+
+mod_climate_R_sq <- lmer(
+  log(RW + 0.001) ~ Z + I(Z^2) + pJulAug_tmax + AprMay_tmax  +
+                           pJulSep_JulSep_ppt + precip + meantemp + 
+    (1 + Z | TRE_CN),
+  data = dat_all,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
+
+summary(mod_climate_R_sq)
+
+
+```
+
+
+### check model and viz mixed effects mdoels
+
+```{r}
+library(broom.mixed)
+anova(mod_climate_RE, mod_climate_R_sq) # squared Z is better model with AIC
+
+model_summary_RE <- broom.mixed::tidy(mod_climate_RE, conf.int = TRUE) %>% 
+  filter(effect == "fixed", term != "(Intercept)")
+
+# Plot the coefficients for mod_climate_RE
+ggplot(model_summary_RE, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue") +
+  coord_flip() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  labs(title = "Coefficient Plot: mod_climate_RE",
+       x = "Coefficient",
+       y = "Estimate (with 95% CI)") +
+  theme_minimal()
+
+
+# Tidy the mod_climate_R_sq model with confidence intervals
+model_summary_R_sq <- broom.mixed::tidy(mod_climate_R_sq, conf.int = TRUE) %>% 
+  filter(effect == "fixed", term != "(Intercept)")
+
+# Plot the coefficients for mod_climate_R_sq
+ggplot(model_summary_R_sq, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue") +
+  coord_flip() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  labs(title = "Coefficient Plot: mod_climate_R_sq",
+       x = "Coefficient",
+       y = "Estimate (with 95% CI)") +
+  theme_minimal()
+
+```
+### plotting growth functions linear and quadratic on data
 
 ```{r}
 
-# load in wbp tree ring data and associated metadata ----------------------
 
-wbp_meta <- read_csv(here::here("tree-H", "data", "raw", "wbp_cores_2020-2023.csv")) 
-wbp_meta <- wbp_meta %>% 
-  rename(TRE_CN = CN)
-wbp_rw <- read_csv(here::here("tree-H", "data", "raw", "wbp_new_rwl.csv"))
-wbp_rw <- wbp_rw %>% 
-  rename(TRE_CN = CN)
+z_plot <- seq(min(dat_all$Z, na.rm = TRUE), max(dat_all$Z, na.rm = TRUE), length.out = 100)
+size_plot <- z_plot * mod_climate_RE@beta[2]
+size_plot_sq <- z_plot * mod_climate_R_sq@beta[2] + z_plot^2 * mod_climate_R_sq@beta[3]
+plot(size_plot ~ z_plot)
 
-
-```
-
-
-## Load data
-
-Load the data for the analysis: tree ring growth, back-calculated size, and climate data
-```{r, message=FALSE, warning=FALSE}
-
-dat <- read_csv(here::here("tree-H", "data", "processed", "tree_ring_rw_usable.csv"))
-dat_bc <- read_csv(here::here("tree-H", "data", "processed", "wbp_size.csv"))
-dat_climate <- read_csv(here::here("tree-H", "data", "processed", "wbp_new_climate_data_all.csv"))
-
-```
-
-## Data Formatting for treeclim - try using functions from github since package was taken off CRAN
-
-```{r, message=FALSE, warning=FALSE}
-
-
-dc1_DF <- dcc(chrono = rw_crn_DF, climate = clim_df) #dcc = dendroclimatic calibration
-plot(dc1_DF)
-
-#create ring width dataframe (rwl) for dplR
-wbp_df <- data_all %>%
-  filter(SPCD == 202) %>%
-  ungroup() %>%
-  dplyr::select(TRE_CN, Year, RW)
-rw_data_DF <- spread(rw_data_DF,key = "TRE_CN",value = RW,fill = NA,drop = FALSE) #pivot_wider?
-rw_data_DF <- as.data.frame(rw_data_DF)
-years <- rw_data_DF$Year
-rw_data_DF <- rw_data_DF %>%
-  dplyr::select(-Year)
-rownames(rw_data_DF) <- years
-colnames(rw_data_DF) <- paste("SER", colnames(rw_data_DF), sep = "_")
-
+plot(log(dat_all$RW + 0.001) ~ dat_all$Z)
+lines(size_plot~z_plot, col = "red")
+lines(size_plot_sq~z_plot, col = "blue")
 
 
 ```
+### mixed effects model with interaction terms
+
+```{r}
+
+data_FIA <- dat_all %>% 
+  filter(dataset == "FIA")
+data_kichas <- dat_all %>% 
+  filter(dataset == "kichas")
+
+mod_climate_RE_int <- lmer(
+  log(RW + 0.001) ~ Z +
+    precip * pJulSep_JulSep_ppt +
+    meantemp * pJulAug_tmax +
+    meantemp * pAprMay_tmax +
+    (1 + Z | TRE_CN),
+  data = dat_all,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
 
 
-## Matrix Construction for Regression
+mod_climate_RE_int_sq <- lmer(
+  log(RW + 0.001) ~ Z + I(Z^2) + 
+    precip * pJulSep_JulSep_ppt +
+    meantemp * pJulAug_tmax +
+    meantemp * pAprMay_tmax +
+    (1 + Z | TRE_CN),
+  data = dat_all,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
 
+mod_climate_RE_int_FIA <- lmer(
+  log(RW + 0.001) ~ Z +
+    precip * pJulSep_JulSep_ppt +
+    meantemp * pJulAug_tmax +
+    meantemp * pAprMay_tmax +
+    (1 + Z | TRE_CN),
+  data = data_FIA,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
+
+
+mod_climate_RE_int_sq_FIA <- lmer(
+  log(RW + 0.001) ~ Z + I(Z^2) + 
+    precip * pJulSep_JulSep_ppt +
+    meantemp * pJulAug_tmax +
+    meantemp * pAprMay_tmax +
+    (1 + Z | TRE_CN),
+  data = data_FIA,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
+
+mod_climate_RE_int_kichas <- lmer(
+  log(RW + 0.001) ~ Z +
+    precip * pJulSep_JulSep_ppt +
+    meantemp * pJulAug_tmax +
+    meantemp * pAprMay_tmax +
+    (1 + Z | TRE_CN),
+  data = data_kichas,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
+
+
+mod_climate_RE_int_sq_kichas <- lmer(
+  log(RW + 0.001) ~ Z + I(Z^2) + 
+    precip * pJulSep_JulSep_ppt +
+    meantemp * pJulAug_tmax +
+    meantemp * pAprMay_tmax +
+    (1 + Z | TRE_CN),
+  data = data_kichas,
+  control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
+
+summary(mod_climate_RE_int)
+
+```
+
+### viz of mixed effects model with interaction terms
+
+```{r}
+
+# anova(model_summary_RE_int, model_summary_RE_int_sq) # squared Z is better model with AIC
+
+model_summary_RE_int_summary <- broom.mixed::tidy(mod_climate_RE_int, conf.int = TRUE) %>% 
+  filter(effect == "fixed", term != "(Intercept)")
+
+# Create the coefficient plot
+ggplot(model_summary_RE_int_summary, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue") +
+  coord_flip() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  labs(title = "Coefficient Plot: mod_climate_RE_int",
+       x = "Coefficient",
+       y = "Estimate (with 95% CI)") +
+  theme_minimal()
+
+model_summary_RE_int_sq_summary <- broom.mixed::tidy(mod_climate_RE_int_sq, conf.int = TRUE) %>% 
+  filter(effect == "fixed", term != "(Intercept)")
+
+# Create the coefficient plot
+ggplot(model_summary_RE_int_sq_summary, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue") +
+  coord_flip() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  labs(title = "Coefficient Plot: mod_climate_RE_int_sq",
+       x = "Coefficient",
+       y = "Estimate (with 95% CI)") +
+  theme_minimal()
+
+z_plot <- seq(min(dat_all$Z, na.rm = TRUE), max(dat_all$Z, na.rm = TRUE), length.out = 100)
+size_plot <- z_plot * mod_climate_RE_int@beta[2]
+size_plot_sq <- z_plot * mod_climate_RE_int_sq@beta[2] + z_plot^2 * mod_climate_RE_int_sq@beta[3]
+plot(size_plot ~ z_plot)
+
+plot(log(dat_all$RW + 0.001) ~ dat_all$Z)
+lines(size_plot~z_plot, col = "red")
+lines(size_plot_sq~z_plot, col = "blue")
+
+range(log(dat_all$RW + 0.001))
+dat_all <- dat_all %>% 
+  filter(log(RW + 0.001) < 2)
+
+
+```
+Warmer year, warm location, less growth
+Cooler years, cool locations, less growth
+Warm year, cool location, higher than expected growth?? 
+
+### plotting interaction terms 
+
+```{r}
+# start with single tree at single location 
+
+
+dat_onetree <- dat_all %>% 
+  # filter(TRE_CN == "22T1778") %>% 
+  dplyr::select(-c("pJulAug_tmax", "meantemp")) # for each row give meantemp, and maxtemp
+
+
+int_grid <- expand_grid(meantemp = seq(-3,3, length.out = 3), pJulAug_tmax = seq(-3,3, length.out = 3))
+
+
+dat_pred <- do.call(rbind, lapply(1:nrow(int_grid), function(i) dat_onetree %>% 
+         mutate(meantemp = int_grid[i,]$meantemp, pJulAug_tmax = int_grid[i,]$pJulAug_tmax)))
+
+dat_pred <- dat_pred %>% 
+  drop_na(Z)
+
+nrow(dat_pred)
+dat_pred <- dat_pred %>% 
+  mutate(y_pred = predict(mod_climate_RE_int, newdata = dat_pred))
+
+y_pred = predict(mod_climate_RE_int, newdata = dat_pred)
+length(y_pred) #10,387
+
+nrow(dat_all) #20,450
+summary(dat_all)
+
+dat_pred %>% filter(TRE_CN %in% sample(unique(TRE_CN), 10)) %>%
+ ggplot() + geom_line(aes(y = y_pred, x = pJulAug_tmax, group = year)) + 
+  facet_grid(meantemp~TRE_CN)
+
+
+```
